@@ -1,0 +1,22 @@
+[package]
+name = "lsmtpd" # Lightweight Simple Mail Transfer Protocol Daemon (LSMTPD)
+authors = ["Neko Nik <admin@nekonik.com>"]
+description = "A minimalistic, lightweight SMTP server for receiving mail and forwarding to an AMQP broker."
+version = "1.0.0"
+edition = "2021"
+license = "GPL-3.0"
+repository = "https://github.com/Neko-Nik/LSMTP"
+documentation = "https://lsmtp.nekonik.com"
+readme = "README.md"
+keywords = ["SMTP", "mail", "RabbitMQ", "minimalistic", "server", "daemon", "AMQP", "broker"]
+
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+chrono = "0.4"
+
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
