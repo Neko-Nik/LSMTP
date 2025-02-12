@@ -1,39 +1,38 @@
-mod smtp_client;
-
+use utils::client::handle_client;
+use utils::base::get_env_vars;
 use tokio::net::TcpListener;
-use tokio::fs::{OpenOptions, File};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use self::smtp_client::handle_client;
-use std::net::SocketAddr;
+
+mod utils;
+
 
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
-    let listener = TcpListener::bind("0.0.0.0:25").await?;
-    println!("Neko Nik - LSMTP Daemon started on port 25");
+    env_logger::init();
+    let config = Arc::new(get_env_vars().expect("Failed to get configuration variables"));
 
-    // Shared log file (thread-safe)
-    let log_file: Arc<Mutex<File>> = Arc::new(Mutex::new(
-        OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/var/log/lsmtpd.log")
-            .await?,
-    ));
+    let listener = TcpListener::bind(format!("{}:{}", config.bind_address, config.bind_port)).await?;
+    log::info!("Neko Nik - LSMTP Daemon started on port 25");
 
     loop {
-        let (socket, _) = listener.accept().await?;
+        match listener.accept().await {
+            Ok((_socket, addr)) => {
+                log::trace!("Incoming connection from: {}", addr);
 
-        // Get client IP address
-        let client_addr: SocketAddr = socket.peer_addr()?;
-        println!("Incoming connection from: {}", client_addr);
+                // Clone the configuration for each client
+                let config_clone = Arc::clone(&config);
 
-        let log_file = log_file.clone();
-
-        tokio::spawn(async move {
-            if let Err(err) = handle_client(socket, log_file, client_addr).await {
-                eprintln!("Error handling client from {}: {:?}", client_addr, err);
+                tokio::spawn(async move {
+                    if let Err(err) = handle_client(_socket, config_clone).await {
+                        log::error!("Error handling client from {}: {:?}", addr, err);
+                    } else {
+                        log::trace!("Client from {} disconnected", addr);
+                    }
+                });
+            },
+            Err(e) => {
+                log::error!("Error accepting connection: {:?}", e);
             }
-        });
+        }
     }
 }

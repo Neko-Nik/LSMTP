@@ -12,11 +12,19 @@ keywords = ["SMTP", "mail", "RabbitMQ", "minimalistic", "server", "daemon", "AMQ
 
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.0", features = ["v4"] }
+env_logger = "0.11.6"
 chrono = "0.4"
+log = "0.4"
 
 
 [profile.release]
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
+opt-level = 3
+overflow-checks = true
+debug = false
+strip = true
