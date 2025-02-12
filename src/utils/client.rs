@@ -1,16 +1,18 @@
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use super::base::{EnvVars, RabbitConfig};
+use super::amqp::AMQPClient;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio::io::Result;
+use serde::Serialize;
 use std::sync::Arc;
 use chrono::Local;
 use uuid::Uuid;
 
 
-#[derive(Debug)]
-struct EMLData {
+#[derive(Debug, Serialize)]
+pub struct EMLData {
     timestamp: String,
-    message_id: String,
+    pub message_id: String,
     recipients: Vec<String>,
     email_content: String,
     sender: String,
@@ -73,7 +75,7 @@ impl SMTPResponse {
 }
 
 
-pub async fn handle_client(socket: TcpStream, config: Arc<EnvVars>) -> Result<()> {
+pub async fn handle_client(socket: TcpStream, server_name: String, amqp_client: Arc<Mutex<AMQPClient>>) -> Result<()> {
     let (reader, mut writer) = socket.into_split();
     let mut reader = BufReader::new(reader);
     let mut buffer = String::new();
@@ -125,7 +127,7 @@ pub async fn handle_client(socket: TcpStream, config: Arc<EnvVars>) -> Result<()
 
                 SMTPCommand::DATA => {
                     writer.write_all(SMTPResponse::DATA.as_bytes()).await?;
-                    eml_data.email_content.push_str(&format!("Message-ID: <{}@{}>\n", eml_data.message_id, config.server_name));
+                    eml_data.email_content.push_str(&format!("Message-ID: <{}@{}>\n", eml_data.message_id, server_name));
                     data_mode = true;
                 }
 
@@ -143,28 +145,11 @@ pub async fn handle_client(socket: TcpStream, config: Arc<EnvVars>) -> Result<()
     }
 
     if eml_data.recipients.is_empty() || eml_data.sender.is_empty() || eml_data.email_content.is_empty() {
-        log::warn!("{:?} Invalid email data: {:?}", eml_data.timestamp, eml_data);
+        log::warn!("Invalid email data, either sender, recipients or email content is empty: {:?}", eml_data);
         return Ok(());
     }
 
-    relay_it_to_amqp(eml_data, RabbitConfig {
-        host: config.rabbit_details.host.clone(),
-        port: config.rabbit_details.port,
-        username: config.rabbit_details.username.clone(),
-        password: config.rabbit_details.password.clone(),
-        vhost: config.rabbit_details.vhost.clone(),
-        exchange: config.rabbit_details.exchange.clone(),
-        routing_key: config.rabbit_details.routing_key.clone(),
-    }).await?;
+    amqp_client.lock().await.publish(&eml_data).await;
 
-    Ok(())
-}
-
-
-async fn relay_it_to_amqp(eml_data: EMLData, rabbit_details: RabbitConfig) -> Result<()> {
-    log::debug!("{:?} The data is: {:?}", eml_data.timestamp, eml_data);
-    log::debug!("{:?} The RabbitMQ details are: {:?}", eml_data.message_id, rabbit_details);
-    // TODO: Implement the AMQP relay
-    log::warn!("{:?} AMQP relay not implemented yet: {:?}", eml_data.timestamp, eml_data.message_id);
     Ok(())
 }

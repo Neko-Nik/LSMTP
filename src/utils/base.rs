@@ -3,7 +3,7 @@ use std::error::Error;
 
 
 #[derive(Debug)]
-pub struct RabbitConfig {
+pub struct AMQPConfig {
     pub host: String,
     pub port: u16,
     pub username: String,
@@ -17,7 +17,7 @@ pub struct EnvVars {
     pub bind_address: String,
     pub bind_port: u16,
     pub server_name: String,
-    pub rabbit_details: RabbitConfig,
+    pub amqp_details: AMQPConfig,
 }
 
 
@@ -26,28 +26,30 @@ pub fn get_env_vars() -> Result<EnvVars, Box<dyn Error>> {
     let bind_port = env::var("BIND_PORT")?.parse::<u16>()?;
     let server_name = env::var("SERVER_NAME")?;
 
-    let rabbit_host = env::var("RABBIT_HOST")?;
-    let rabbit_port = env::var("RABBIT_PORT")?.parse::<u16>()?;
-    let rabbit_username = env::var("RABBIT_USERNAME")?;
-    let rabbit_password = env::var("RABBIT_PASSWORD")?;
-    let rabbit_vhost = env::var("RABBIT_VHOST")?;
-    let rabbit_exchange = env::var("RABBIT_EXCHANGE")?;
-    let rabbit_routing_key = env::var("RABBIT_ROUTING_KEY")?;
+    let amqp_host = env::var("AMQP_HOST")?;
+    let amqp_port = env::var("AMQP_PORT")?.parse::<u16>()?;
+    let amqp_username = env::var("AMQP_USERNAME")?;
+    let amqp_password = env::var("AMQP_PASSWORD")?;
+    let amqp_vhost = env::var("AMQP_VHOST")?;
+    let amqp_exchange = env::var("AMQP_EXCHANGE")?;
+    let amqp_routing_key = env::var("AMQP_ROUTING_KEY")?;
 
-    let rabbit_details = RabbitConfig {
-        host: rabbit_host,
-        port: rabbit_port,
-        username: rabbit_username,
-        password: rabbit_password,
-        vhost: rabbit_vhost,
-        exchange: rabbit_exchange,
-        routing_key: rabbit_routing_key,
+    let amqp_details = AMQPConfig {
+        host: amqp_host,
+        port: amqp_port,
+        username: amqp_username,
+        password: amqp_password,
+        vhost: amqp_vhost,
+        exchange: amqp_exchange,
+        routing_key: amqp_routing_key,
     };
+
+    log::debug!("Environment variables loaded successfully");
 
     Ok(EnvVars {
         bind_address,
         bind_port,
         server_name,
-        rabbit_details,
+        amqp_details,
     })
 }
