@@ -97,7 +97,7 @@ If you find this project useful, please consider citing:
 ### **BibTeX Citation**
 
 ```bibtex
-@misc{Nikhil Raj_2025,
+@misc{Nikhil_Raj_2025,
   title={Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration},
   author={Nikhil Raj},
   url={http://dx.doi.org/10.31224/4377},
