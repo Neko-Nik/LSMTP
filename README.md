@@ -1,6 +1,11 @@
 # **LSMTPD - Lightweight SMTP Daemon**
 
+<p align="center">
+  <a href="LSMTP-Paper.pdf"><b>Paper Link<b></b>👀</a>
+</p>
+
 A minimalistic, lightweight SMTP server for receiving mail and forwarding to AMQP. It's lightweight, high-performance, and easy to configure for your needs.
+
 
 ## **Installation & Setup**  
 
@@ -74,4 +79,39 @@ For issues, open a ticket in the [GitHub Issues](https://github.com/Neko-Nik/LSM
 
 ## **License**  
 
-This project is licensed under [GPL-3.0](https://github.com/Neko-Nik/LSMTP/blob/main/LICENSE)
+- **Paper (Research Work)**: Licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Code (Software)**: Licensed under [GPL-3.0](https://github.com/Neko-Nik/LSMTP/blob/main/LICENSE)
+
+---
+
+## **Citation**
+
+If you find this project useful, please consider citing:
+
+> **Nikhil Raj** (2025). *Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration*. Open Engineering Inc.
+
+> DOI: [10.31224/4377](https://doi.org/10.31224/4377)
+
+> Available at: [https://engrxiv.org/preprint/view/4377](https://engrxiv.org/preprint/view/4377)
+
+### **BibTeX Citation**
+
+```bibtex
+@misc{Nikhil Raj_2025,
+  title={Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration},
+  author={Nikhil Raj},
+  url={http://dx.doi.org/10.31224/4377},
+  PrimaryClass={cs.NI},
+  DOI={10.31224/4377},
+  year={2025},
+  month=feb
+}
+```
+
+---
+
+## **Contact**
+
+If you have any questions, please raise an issue or contact me.
+    - **Email:** [admin@nekonik.com](mailto:admin@nekonik.com)
+    - **Electronic contact:** [https://www.nekonik.com/contact](https://www.nekonik.com/contact)

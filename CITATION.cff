@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it using the following metadata."
+title: "Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration"
+authors:
+  - family-names: Tandle
+    given-names: "Nikhil Raj"
+    email: "nikhil@nekonik.com"
+    orcid: "https://orcid.org/0009-0008-3435-5674"
+version: "1.0.0"
+date-released: "2025-02-13"
+year: 2025
+identifiers:
+  - type: doi
+    value: 10.31224/4377
+  - type: url
+    value: "http://dx.doi.org/10.31224/4377"
+  - type: preprint
+    value: "https://engrxiv.org/preprint/view/4377"
+url: "https://engrxiv.org/preprint/view/4377"
+keywords:
+  - "distributed system"
+  - "email"
+  - "Computer Networking"
+  - "microservice"
+  - "SMTP"
+  - "LSMTP"
+  - "AMQP"
+doi: "10.31224/4377"
+abstract: >
+  This paper introduces the Lightweight SMTP Server (LSMTP), a minimalistic SMTP server designed for modern distributed systems that require high scalability and efficiency. 
+  LSMTP is optimized to handle the essential SMTP commands—HELO/EHLO, MAIL FROM, RCPT TO, DATA, and QUIT—while excluding advanced features like encryption, spam filtering, and email storage. 
+  The server is implemented using Rust and Tokio, ensuring optimal performance and minimal resource consumption. Integrated seamlessly with AMQP (Advanced Message Queuing Protocol), 
+  LSMTP forwards incoming emails to message brokers like RabbitMQ for further processing. Performance benchmarks highlight LSMTP’s efficiency compared to traditional mail servers.
+categories:
+  - "cs.NI"  # Computer Science - Networking and Internet Architecture
+  - "cs.DC"  # Computer Science - Distributed, Parallel, and Cluster Computing
+repository-code: "https://github.com/Neko-Nik/LSMTP"
+commit: 30cc3d205d2e9ecbe3575d48cb14cbadd3c55025
+license: "CC-BY-4.0"
