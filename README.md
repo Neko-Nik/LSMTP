@@ -88,11 +88,11 @@ For issues, open a ticket in the [GitHub Issues](https://github.com/Neko-Nik/LSM
 
 If you find this project useful, please consider citing:
 
-> **Nikhil Raj** (2025). *Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration*. Open Engineering Inc.
+> [1] Nikhil Raj, “Lightweight SMTP Server for High-Performance Email Processing with AMQP Integration.” Open Engineering Inc, Feb. 13, 2025. doi: 10.31224/4377.
 
-> DOI: [10.31224/4377](https://doi.org/10.31224/4377)
+- DOI: [10.31224/4377](https://doi.org/10.31224/4377)
 
-> Available at: [https://engrxiv.org/preprint/view/4377](https://engrxiv.org/preprint/view/4377)
+- Available at: [https://engrxiv.org/preprint/view/4377](https://engrxiv.org/preprint/view/4377)
 
 ### **BibTeX Citation**
 
@@ -113,5 +113,7 @@ If you find this project useful, please consider citing:
 ## **Contact**
 
 If you have any questions, please raise an issue or contact me.
-    - **Email:** [admin@nekonik.com](mailto:admin@nekonik.com)
-    - **Electronic contact:** [https://www.nekonik.com/contact](https://www.nekonik.com/contact)
+
+- **Email:** [admin@nekonik.com](mailto:admin@nekonik.com)
+
+- **Electronic contact:** [https://www.nekonik.com/contact](https://www.nekonik.com/contact)
