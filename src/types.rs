@@ -9,6 +9,7 @@ pub struct AMQPConfig {
     vhost: String,
     exchange: String,
     routing_key: String,
+    pub buffer_size: usize,
 }
 
 pub struct BaseConfig {
@@ -55,6 +56,10 @@ impl BaseConfig {
             .expect("AMQP_EXCHANGE must be set");
         let amqp_routing_key = env_var("AMQP_ROUTING_KEY")
             .expect("AMQP_ROUTING_KEY must be set");
+        let amqp_buffer_size = env_var("AMQP_BUFFER_SIZE")
+            .expect("AMQP_BUFFER_SIZE must be set to a valid usize")
+            .parse::<usize>()
+            .expect("AMQP_BUFFER_SIZE must be set to a valid usize");
 
         log::info!("All environment variables have been loaded");
         let amqp_details = AMQPConfig {
@@ -65,6 +70,7 @@ impl BaseConfig {
             vhost: amqp_vhost,
             exchange: amqp_exchange,
             routing_key: amqp_routing_key,
+            buffer_size: amqp_buffer_size,
         };
 
         BaseConfig {

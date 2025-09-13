@@ -2,8 +2,8 @@ use super::prelude::{mpsc, sleep, Duration, BasicPublishOptions, Connection, Con
 use super::types::{AMQPConfig, Email};
 
 
-pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sender<Email> {
-    let (tx, mut rx) = mpsc::channel::<Email>(buffer);
+pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
+    let (tx, mut rx) = mpsc::channel::<Email>(amqp_config.buffer_size);
 
     tokio::spawn(async move {
         // connect with retry

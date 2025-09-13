@@ -18,7 +18,7 @@ pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, Stri
     log::info!("LSMTP Daemon started on {}", base_config.bind_uri());
 
     // Initialize the channel
-    let tx = start_amqp_publisher(base_config.amqp_details, 100);   // TODO: Move this to env
+    let tx = start_amqp_publisher(base_config.amqp_details);
 
     (listener, Arc::new(tx), host_name)
 }
