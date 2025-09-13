@@ -23,6 +23,7 @@ pub struct BaseConfig {
 pub struct Email {
     timestamp: String,
     message_id: String,
+    client_address: String,
     recipients: Vec<String>,
     email_content: String,
     sender: String,
@@ -116,12 +117,17 @@ impl Email {
             message_id: uuid_v4(),
             recipients: Vec::new(),
             email_content: String::new(),
+            client_address: String::new(),
             sender: String::new(),
         }
     }
 
     pub fn get_id(&self) -> &str {
         &self.message_id
+    }
+
+    pub fn set_client_address(&mut self, client_address: String) {
+        self.client_address = client_address;
     }
 
     pub fn add_recipient(&mut self, recipient: String) {
