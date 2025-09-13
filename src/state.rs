@@ -1,6 +1,6 @@
-use super::prelude::*;
-use super::types::*;
-use super::amqp::*;
+use super::prelude::{TcpListener, Arc};
+use super::types::{Email, BaseConfig};
+use super::amqp::start_amqp_publisher;
 
 
 pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, String) {
@@ -15,7 +15,7 @@ pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, Stri
         .await
         .expect("Failed to bind to address");
 
-    info!("LSMTP Daemon started on {}", base_config.bind_uri());
+    log::info!("LSMTP Daemon started on {}", base_config.bind_uri());
 
     // Initialize the channel
     let tx = start_amqp_publisher(base_config.amqp_details, 100);

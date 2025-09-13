@@ -2,11 +2,9 @@ pub use lapin::{BasicProperties, Connection, ConnectionProperties, options::Basi
 pub use tokio::time::{sleep, Duration};
 pub use std::env::var as env_var;
 pub use tokio::net::TcpListener;
-pub use log::{info, error};
 pub use tokio::sync::mpsc;
 pub use serde::Serialize;
 pub use std::sync::Arc;
-pub use serde_json;
 
 
 pub fn uuid_v4() -> String {

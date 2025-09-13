@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::prelude::{env_var, current_timestamp, uuid_v4, Serialize};
 
 
 pub struct AMQPConfig {
@@ -56,7 +56,7 @@ impl BaseConfig {
         let amqp_routing_key = env_var("AMQP_ROUTING_KEY")
             .expect("AMQP_ROUTING_KEY must be set");
 
-        info!("All environment variables have been loaded");
+        log::info!("All environment variables have been loaded");
         let amqp_details = AMQPConfig {
             host: amqp_host,
             port: amqp_port,

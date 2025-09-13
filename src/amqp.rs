@@ -1,5 +1,5 @@
-use super::prelude::*;
-use super::types::*;
+use super::prelude::{mpsc, sleep, Duration, BasicPublishOptions, Connection, ConnectionProperties, BasicProperties};
+use super::types::{AMQPConfig, Email};
 
 
 pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sender<Email> {
@@ -11,7 +11,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sen
             match Connection::connect(&amqp_config.amqp_url(), ConnectionProperties::default()).await {
                 Ok(c) => break c,
                 Err(e) => {
-                    error!("AMQP connect failed: {} - retrying in 3s", e);
+                    log::error!("AMQP connect failed: {} - retrying in 3s", e);
                     sleep(Duration::from_secs(3)).await;
                 }
             }
@@ -19,7 +19,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sen
 
         let channel = match connection.create_channel().await {
             Ok(ch) => ch,
-            Err(e) => { error!("create_channel failed: {}", e); return; }
+            Err(e) => { log::error!("create_channel failed: {}", e); return; }
         };
 
         while let Some(email) = rx.recv().await {
@@ -34,12 +34,12 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sen
                 )
                 .await
             {
-                error!("Publish failed: {}", e);
+                log::error!("Publish failed: {}", e);
                 // TODO: implement retry / DLQ here
             }
         }
 
-        info!("AMQP publisher exiting; sender closed");
+        log::info!("AMQP publisher exiting; sender closed");
     });
 
     tx

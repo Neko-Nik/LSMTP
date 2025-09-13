@@ -1,8 +1,9 @@
-mod amqp;
-mod state;
 mod prelude;
-mod types;
 mod handler;
+mod types;
+mod state;
+mod amqp;
+
 
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
