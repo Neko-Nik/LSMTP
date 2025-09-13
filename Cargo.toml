@@ -7,6 +7,7 @@ edition = "2024"
 license = "GPL-3.0"
 repository = "https://github.com/Neko-Nik/LSMTP"
 documentation = "https://lsmtp.nekonik.com"
+homepage = "https://doi.org/10.31224/4377"
 readme = "README.md"
 keywords = ["SMTP", "mail", "RabbitMQ", "minimalistic", "server", "daemon", "AMQP", "broker"]
 

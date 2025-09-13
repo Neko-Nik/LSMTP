@@ -4,6 +4,9 @@ mod types;
 mod state;
 mod amqp;
 
+// TODO: Add all kinds of comments
+
+// TODO: Try to add support for TLS / SSL / STARTTLS
 
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
