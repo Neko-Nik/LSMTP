@@ -3,8 +3,16 @@ use super::amqp::start_amqp_publisher;
 use super::prelude::TcpListener;
 
 
+// Temporary email storage directory if the AMQP publish fails
+const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
+
+
 pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, String) {
+    // Initialize logging
     env_logger::init();
+
+    // Create temporary email storage directory if it doesn't exist
+    std::fs::create_dir_all(TMP_EMAIL_DIR).unwrap();
 
     // Preparing to start the server by collecting environment variables
     let base_config = BaseConfig::from_env();
