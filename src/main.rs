@@ -21,21 +21,31 @@ async fn main() -> tokio::io::Result<()> {
 
                 // Spawn a new task to handle the client connection
                 tokio::spawn(async move {
-
                     // Create a new email handler
                     let client = handler::email::EmailHandler::new(socket);
 
-                    match client.run(server_name).await {
-                        Ok(email) => {
-                            log::info!("Received email: {}", email.get_id());
-                            
-                            // Send email to AMQP channel to process with backpressure (channel buffering)
-                            if let Err(e) = amqp_txn.send(email).await {
-                                log::error!("Failed to send email to AMQP channel: {}", e);
+                    // Run the client with a 3 minute timeout
+                    match prelude::timeout(prelude::Duration::from_secs(180), client.run(server_name)).await {
+                        Ok(run_result) => {
+                            // client.run completed before timeout, now inspect result
+                            match run_result {
+                                Ok(email) => {
+                                    log::info!("Received email: {}", email.get_id());
+
+                                    // Send email to AMQP channel to process with backpressure (channel buffering)
+                                    if let Err(e) = amqp_txn.send(email).await {
+                                        log::error!("Failed to send email to AMQP channel: {}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Error handling client: {}", e);
+                                }
                             }
                         }
-                        Err(e) => {
-                            log::error!("Error handling client: {}", e);
+
+                        // Timeout elapsed
+                        Err(elapsed) => {
+                            log::warn!("Connection handler timed out after 180s: dropping connection, timeout error details: {:?}", elapsed);
                         }
                     }
                 });

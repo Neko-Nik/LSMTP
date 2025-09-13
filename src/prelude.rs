@@ -1,5 +1,5 @@
 pub use lapin::{BasicProperties, Connection, ConnectionProperties, options::BasicPublishOptions};
-pub use tokio::time::{sleep, Duration};
+pub use tokio::time::{timeout, sleep, Duration};
 pub use std::env::var as env_var;
 pub use tokio::net::TcpListener;
 pub use tokio::sync::mpsc;

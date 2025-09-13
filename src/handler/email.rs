@@ -37,6 +37,7 @@ impl EmailHandler {
             let bytes_read = self.reader.read_line(&mut self.buffer).await?;
             if bytes_read == 0 {
                 // peer closed connection
+                self.writer.shutdown().await?;
                 break;
             }
 
@@ -92,6 +93,7 @@ impl EmailHandler {
 
                 SMTPCommand::Quit => {
                     self.writer.write_all(&SMTPResponse::BYE_RESPONSE).await?;
+                    self.writer.shutdown().await?;
                     break;
                 }
 
@@ -106,6 +108,7 @@ impl EmailHandler {
             Ok(_) => Ok(self.email),
             Err(e) => {
                 log::warn!("Invalid email data: {}", e);
+                self.writer.shutdown().await?;
                 Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid email data"))
             }
         }
