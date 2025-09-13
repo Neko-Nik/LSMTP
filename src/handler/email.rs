@@ -1,85 +1,113 @@
+use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use super::parsing::{SMTPCommand, SMTPResponse};
-use tokio::net::TcpStream;
 use crate::types::Email;
 
 
-// TODO: Try to add support for TLS / SSL / STARTTLS
-pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Email, std::io::Error> {
-    let (reader, mut writer) = socket.into_split();
-    let mut reader = BufReader::new(reader);
-    let mut buffer = String::new();
-    let mut eml_data = Email::empty();
-    let mut data_mode: bool = false;
+/// Per-connection client object that owns the reader/writer and session state.
+pub struct EmailHandler {
+    reader: BufReader<OwnedReadHalf>,
+    writer: OwnedWriteHalf,
+    email: Email,
+    data_mode: bool,
+    buffer: String,
+}
 
-    // Greet the client with the server's welcome message
-    writer.write_all(&SMTPResponse::greet(&server_name)).await?;
 
-    // Main loop to handle SMTP commands
-    loop {
-        buffer.clear();
-        let bytes_read = reader.read_line(&mut buffer).await?;
-        if bytes_read == 0 {
-            break;  // TODO: Why? Test it once maybe because the client disconnected
+impl EmailHandler {
+    /// Create a EmailHandler from a connected TcpStream
+    pub fn new(socket: TcpStream) -> Self {
+        let (read_half, write_half) = socket.into_split();
+        EmailHandler {
+            reader: BufReader::new(read_half),
+            writer: write_half,
+            email: Email::empty(),
+            data_mode: false,
+            buffer: String::with_capacity(1024),
         }
+    }
 
-        let command: &str = buffer.trim_end();
+    /// Run the client session. Consumes self and returns the Email (or IO error).
+    pub async fn run(mut self, server_name: String) -> Result<Email, std::io::Error> {
+        // greet the client
+        self.writer.write_all(&SMTPResponse::greet(&server_name)).await?;
 
-        if data_mode {
-            if command == "." { // End of DATA
-                writer.write_all(&SMTPResponse::OK_WITH_MESSAGE_RESPONSE).await?;
-                data_mode = false; // TODO: Should i break the loop ? (Test it once)
-            } else {
-                eml_data.add_content(format!("{}\n", command));
+        loop {
+            self.buffer.clear();
+            let bytes_read = self.reader.read_line(&mut self.buffer).await?;
+            if bytes_read == 0 {
+                // peer closed connection
+                break;
             }
-        } else {
-            match SMTPCommand::from_str(command) {
 
+            // trim only CRLF, keep content for parsing
+            let line = self.buffer.trim_end_matches(&['\r', '\n'][..]);
+
+            if self.data_mode {
+                if line == "." {
+                    // end of DATA
+                    self.writer.write_all(&SMTPResponse::OK_WITH_MESSAGE_RESPONSE).await?;
+                    self.data_mode = false;
+                    // Typically the DATA end completes a message; we can break to return Email
+                    // break;
+                } else {
+                    // append data line to email content (dot-stuffing not handled here if needed)
+                    self.email.add_content(format!("{}\n", line));
+                    continue;
+                }
+            }
+
+            // Not in data mode — parse command
+            match SMTPCommand::from_str(line) {
                 SMTPCommand::HELO => {
-                    eml_data.set_client_address(command[5..].trim().to_string());
-                    writer.write_all(&SMTPResponse::helo_response(&server_name)).await?;
+                    // safely get argument after command: avoid direct slicing
+                    let arg = line.get(5..).unwrap_or("").trim().to_string();
+                    self.email.set_client_address(arg);
+                    self.writer.write_all(&SMTPResponse::helo_response(&server_name)).await?;
                 }
 
                 SMTPCommand::EHLO => {
-                    eml_data.set_client_address(command[5..].trim().to_string());
-                    writer.write_all(&SMTPResponse::ehlo_response(&server_name)).await?;
+                    let arg = line.get(5..).unwrap_or("").trim().to_string();
+                    self.email.set_client_address(arg);
+                    self.writer.write_all(&SMTPResponse::ehlo_response(&server_name)).await?;
                 }
 
                 SMTPCommand::MailFrom => {
-                    eml_data.set_sender(command[10..].trim().to_string());
-                    writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    // safe slice: MAIL FROM: is 10 chars, but use get to avoid panic
+                    let arg = line.get(10..).unwrap_or("").trim().to_string();
+                    self.email.set_sender(arg);
+                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
                 }
 
                 SMTPCommand::RcptTo => {
-                    eml_data.add_recipient(command[8..].trim().to_string());
-                    writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    let arg = line.get(8..).unwrap_or("").trim().to_string();
+                    self.email.add_recipient(arg);
+                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
                 }
 
                 SMTPCommand::Data => {
-                    writer.write_all(&SMTPResponse::DATA_RESPONSE).await?;
-                    data_mode = true;
+                    self.writer.write_all(&SMTPResponse::DATA_RESPONSE).await?;
+                    self.data_mode = true;
                 }
 
                 SMTPCommand::Quit => {
-                    writer.write_all(&SMTPResponse::BYE_RESPONSE).await?;
+                    self.writer.write_all(&SMTPResponse::BYE_RESPONSE).await?;
                     break;
                 }
 
                 SMTPCommand::Unknown => {
-                    writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
+                    self.writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
                 }
+            }
+        }
 
+        // Final validation
+        match self.email.validate() {
+            Ok(_) => Ok(self.email),
+            Err(e) => {
+                log::warn!("Invalid email data: {}", e);
+                Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid email data"))
             }
         }
     }
-
-    match eml_data.validate() {
-        Ok(_) => {},
-        Err(e) => {
-            log::warn!("Invalid email data: {}", e);
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid email data"));
-        }
-    }
-
-    Ok(eml_data)
 }

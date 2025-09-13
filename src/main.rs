@@ -21,15 +21,19 @@ async fn main() -> tokio::io::Result<()> {
 
                 // Spawn a new task to handle the client connection
                 tokio::spawn(async move {
-                    match handler::email::handle_client(socket, server_name).await {
-                        Ok(email) => {
-                            log::info!("Received email: {:?}", email.get_id());
 
+                    // Create a new email handler
+                    let client = handler::email::EmailHandler::new(socket);
+
+                    match client.run(server_name).await {
+                        Ok(email) => {
+                            log::info!("Received email: {}", email.get_id());
+                            
                             // Send email to AMQP channel to process with backpressure (channel buffering)
                             if let Err(e) = amqp_txn.send(email).await {
                                 log::error!("Failed to send email to AMQP channel: {}", e);
                             }
-                        },
+                        }
                         Err(e) => {
                             log::error!("Error handling client: {}", e);
                         }
