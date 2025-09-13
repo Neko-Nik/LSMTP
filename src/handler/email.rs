@@ -1,7 +1,5 @@
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
-use chrono::Local;
-use uuid::Uuid;
 use crate::types::Email;
 
 
@@ -48,15 +46,15 @@ enum SMTPResponse {
 }
 
 impl SMTPResponse {
-    fn as_bytes(&self) -> &'static [u8] {
+    fn as_bytes(&self, server_name: Option<&str>) -> Vec<u8> {
         match self {
-            SMTPResponse::OK => b"250 OK\r\n",
-            SMTPResponse::DATA => b"354 End data with <CR><LF>.<CR><LF>\r\n",
-            SMTPResponse::BYE => b"221 Bye\r\n",
-            SMTPResponse::NotImplemented => b"502 Command not implemented\r\n",
-            SMTPResponse::OkWithMessage => b"250 OK: Message accepted\r\n",
-            SMTPResponse::WelcomeMessage => b"220 Neko Nik LSMTP Server (Debian/GNU)\r\n",
-            SMTPResponse::HeloResponse => b"250 Neko Nik LSMTP Server\r\n",
+            SMTPResponse::OK => b"250 OK\r\n".to_vec(),
+            SMTPResponse::DATA => b"354 End data with <CR><LF>.<CR><LF>\r\n".to_vec(),
+            SMTPResponse::BYE => b"221 Bye\r\n".to_vec(),
+            SMTPResponse::NotImplemented => b"502 Command not implemented\r\n".to_vec(),
+            SMTPResponse::OkWithMessage => b"250 OK: Message accepted\r\n".to_vec(),
+            SMTPResponse::WelcomeMessage => format!("220 {} LSMTP Server (Rust)\r\n", server_name.unwrap_or("Neko Nik")).into_bytes(),
+            SMTPResponse::HeloResponse => format!("250 {}\r\n", server_name.unwrap_or("Neko Nik")).into_bytes(),
         }
     }
 }
@@ -70,7 +68,7 @@ pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Ema
     let mut data_mode: bool = false;
 
     // Start the SMTP conversation
-    writer.write_all(SMTPResponse::WelcomeMessage.as_bytes()).await?;
+    writer.write_all(&SMTPResponse::WelcomeMessage.as_bytes(Some(&server_name))).await?;
 
     // Main loop to handle SMTP commands
     loop {
@@ -84,7 +82,7 @@ pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Ema
 
         if data_mode {
             if command == "." { // End of DATA
-                writer.write_all(SMTPResponse::OkWithMessage.as_bytes()).await?;
+                writer.write_all(&SMTPResponse::OkWithMessage.as_bytes(None)).await?;
                 break;
             } else {
                 // eml_data.email_content.push_str(&format!("{}\n", command));
@@ -94,44 +92,39 @@ pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Ema
             match SMTPCommand::from_str(command) {
 
                 SMTPCommand::EHLO | SMTPCommand::HELO => {
-                    writer.write_all(SMTPResponse::HeloResponse.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::HeloResponse.as_bytes(Some(&server_name))).await?;
                 }
 
                 SMTPCommand::MailFrom => {
                     // eml_data.sender = command[10..].trim().to_string();
                     eml_data.set_sender(command[10..].trim().to_string());
-                    writer.write_all(SMTPResponse::OK.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::OK.as_bytes(None)).await?;
                 }
 
                 SMTPCommand::RcptTo => {
                     // eml_data.recipients.push(command[8..].trim().to_string());
                     eml_data.add_recipient(command[8..].trim().to_string());
-                    writer.write_all(SMTPResponse::OK.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::OK.as_bytes(None)).await?;
                 }
 
                 SMTPCommand::DATA => {
-                    writer.write_all(SMTPResponse::DATA.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::DATA.as_bytes(None)).await?;
                     // eml_data.email_content.push_str(&format!("Message-ID: <{}@{}>\n", eml_data.message_id, server_name));
                     data_mode = true;
                 }
 
                 SMTPCommand::QUIT => {
-                    writer.write_all(SMTPResponse::BYE.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::BYE.as_bytes(None)).await?;
                     break;
                 }
 
                 SMTPCommand::UNKNOWN => {
-                    writer.write_all(SMTPResponse::NotImplemented.as_bytes()).await?;
+                    writer.write_all(&SMTPResponse::NotImplemented.as_bytes(None)).await?;
                 }
 
             }
         }
     }
-
-    // if eml_data.recipients.is_empty() || eml_data.sender.is_empty() || eml_data.email_content.is_empty() {
-    //     log::warn!("Invalid email data, either sender, recipients or email content is empty: {:?}", eml_data);
-    //     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Incomplete email data"));
-    // }
 
     match eml_data.validate() {
         Ok(_) => {},

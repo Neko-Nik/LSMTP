@@ -1,14 +1,12 @@
-pub use tokio::net::TcpListener;
-pub use serde::{Serialize, Deserialize};
-pub use serde_json;
+pub use lapin::{BasicProperties, Connection, ConnectionProperties, options::BasicPublishOptions};
+pub use tokio::time::{sleep, Duration};
 pub use std::env::var as env_var;
-pub use std::sync::mpsc::Receiver;
-pub use lapin::{BasicProperties, Connection, ConnectionProperties, Channel, options::BasicPublishOptions};
-pub use std::time::Duration;
+pub use tokio::net::TcpListener;
 pub use log::{info, error};
-pub use std::error::Error;
-pub use tokio::sync::Mutex;
+pub use tokio::sync::mpsc;
+pub use serde::Serialize;
 pub use std::sync::Arc;
+pub use serde_json;
 
 
 pub fn uuid_v4() -> String {

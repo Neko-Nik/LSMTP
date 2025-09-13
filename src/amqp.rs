@@ -2,42 +2,45 @@ use super::prelude::*;
 use super::types::*;
 
 
-/// Process the channel
-pub async fn amqp_process_channel(amqp_config: AMQPConfig, rx: Receiver<Email>) {
-    // Start the AMQP connection
-    let connection = Connection::connect(&amqp_config.amqp_url(), ConnectionProperties::default())
-        .await
-        .expect("Failed to connect to RabbitMQ");
+pub fn start_amqp_publisher(amqp_config: AMQPConfig, buffer: usize) -> mpsc::Sender<Email> {
+    let (tx, mut rx) = mpsc::channel::<Email>(buffer);
 
-    // Create or reuse the channel
-    let channel = connection.create_channel()
-        .await
-        .expect("Failed to create channel");
-
-    std::thread::spawn(async move || {
-        // Keep reading
-        loop {
-            match rx.recv() {
-                Ok(email) => {
-                    log::info!("Received: {}", email.get_id());
-                    
-                    // Send it to queue
-                    channel.basic_publish(
-                        &amqp_config.exchange(),
-                        &amqp_config.routing_key(),
-                        BasicPublishOptions::default(),
-                        &email.serialize(),
-                        BasicProperties::default(),
-                    )
-                        .await
-                        .expect("Failed to publish email");
-                }
-
-                Err(_) => {
-                    log::error!("Failed to receive email");
-                    break;
+    tokio::spawn(async move {
+        // connect with retry
+        let connection = loop {
+            match Connection::connect(&amqp_config.amqp_url(), ConnectionProperties::default()).await {
+                Ok(c) => break c,
+                Err(e) => {
+                    error!("AMQP connect failed: {} - retrying in 3s", e);
+                    sleep(Duration::from_secs(3)).await;
                 }
             }
+        };
+
+        let channel = match connection.create_channel().await {
+            Ok(ch) => ch,
+            Err(e) => { error!("create_channel failed: {}", e); return; }
+        };
+
+        while let Some(email) = rx.recv().await {
+            let payload = email.serialize();
+            if let Err(e) = channel
+                .basic_publish(
+                    &amqp_config.exchange(),
+                    &amqp_config.routing_key(),
+                    BasicPublishOptions::default(),
+                    &payload,
+                    BasicProperties::default(),
+                )
+                .await
+            {
+                error!("Publish failed: {}", e);
+                // TODO: implement retry / DLQ here
+            }
         }
+
+        info!("AMQP publisher exiting; sender closed");
     });
+
+    tx
 }

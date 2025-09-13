@@ -3,7 +3,7 @@ use super::types::*;
 use super::amqp::*;
 
 
-pub async fn init() -> (TcpListener, Arc<std::sync::mpsc::Sender<Email>>, String) {
+pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, String) {
     env_logger::init();
 
     // Preparing to start the server by collecting environment variables
@@ -18,8 +18,7 @@ pub async fn init() -> (TcpListener, Arc<std::sync::mpsc::Sender<Email>>, String
     info!("LSMTP Daemon started on {}", base_config.bind_uri());
 
     // Initialize the channel
-    let (tx, rx) = std::sync::mpsc::channel::<Email>();
-    amqp_process_channel(base_config.amqp_details, rx).await;
+    let tx = start_amqp_publisher(base_config.amqp_details, 100);
 
     (listener, Arc::new(tx), host_name)
 }

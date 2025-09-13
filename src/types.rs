@@ -104,18 +104,6 @@ impl AMQPConfig {
 
 
 impl Email {
-    pub fn new(recipients: Vec<String>, email_content: String, sender: String) -> Self {
-        let timestamp = current_timestamp();
-        let message_id = uuid_v4();
-        Email {
-            timestamp,
-            message_id,
-            recipients,
-            email_content,
-            sender,
-        }
-    }
-
     pub fn empty() -> Self {
         Email {
             timestamp: current_timestamp(),
