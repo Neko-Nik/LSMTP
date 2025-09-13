@@ -1,22 +1,9 @@
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use super::amqp::AMQPClient;
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio::io::Result;
-use serde::Serialize;
-use std::sync::Arc;
 use chrono::Local;
 use uuid::Uuid;
+use crate::types::Email;
 
-
-#[derive(Debug, Serialize)]
-pub struct EMLData {
-    timestamp: String,
-    pub message_id: String,
-    recipients: Vec<String>,
-    email_content: String,
-    sender: String,
-}
 
 enum SMTPCommand {
     EHLO,
@@ -75,17 +62,11 @@ impl SMTPResponse {
 }
 
 
-pub async fn handle_client(socket: TcpStream, server_name: String, amqp_client: Arc<Mutex<AMQPClient>>) -> Result<()> {
+pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Email, std::io::Error> {
     let (reader, mut writer) = socket.into_split();
     let mut reader = BufReader::new(reader);
     let mut buffer = String::new();
-    let mut eml_data = EMLData {
-        sender: String::new(),
-        recipients: Vec::new(),
-        email_content: String::new(),
-        timestamp: Local::now().to_string(),
-        message_id: Uuid::new_v4().to_string(),
-    };
+    let mut eml_data = Email::empty();
     let mut data_mode: bool = false;
 
     // Start the SMTP conversation
@@ -106,7 +87,8 @@ pub async fn handle_client(socket: TcpStream, server_name: String, amqp_client: 
                 writer.write_all(SMTPResponse::OkWithMessage.as_bytes()).await?;
                 break;
             } else {
-                eml_data.email_content.push_str(&format!("{}\n", command));
+                // eml_data.email_content.push_str(&format!("{}\n", command));
+                eml_data.add_content(format!("{}\n", command));
             }
         } else {
             match SMTPCommand::from_str(command) {
@@ -116,18 +98,20 @@ pub async fn handle_client(socket: TcpStream, server_name: String, amqp_client: 
                 }
 
                 SMTPCommand::MailFrom => {
-                    eml_data.sender = command[10..].trim().to_string();
+                    // eml_data.sender = command[10..].trim().to_string();
+                    eml_data.set_sender(command[10..].trim().to_string());
                     writer.write_all(SMTPResponse::OK.as_bytes()).await?;
                 }
 
                 SMTPCommand::RcptTo => {
-                    eml_data.recipients.push(command[8..].trim().to_string());
+                    // eml_data.recipients.push(command[8..].trim().to_string());
+                    eml_data.add_recipient(command[8..].trim().to_string());
                     writer.write_all(SMTPResponse::OK.as_bytes()).await?;
                 }
 
                 SMTPCommand::DATA => {
                     writer.write_all(SMTPResponse::DATA.as_bytes()).await?;
-                    eml_data.email_content.push_str(&format!("Message-ID: <{}@{}>\n", eml_data.message_id, server_name));
+                    // eml_data.email_content.push_str(&format!("Message-ID: <{}@{}>\n", eml_data.message_id, server_name));
                     data_mode = true;
                 }
 
@@ -144,12 +128,18 @@ pub async fn handle_client(socket: TcpStream, server_name: String, amqp_client: 
         }
     }
 
-    if eml_data.recipients.is_empty() || eml_data.sender.is_empty() || eml_data.email_content.is_empty() {
-        log::warn!("Invalid email data, either sender, recipients or email content is empty: {:?}", eml_data);
-        return Ok(());
+    // if eml_data.recipients.is_empty() || eml_data.sender.is_empty() || eml_data.email_content.is_empty() {
+    //     log::warn!("Invalid email data, either sender, recipients or email content is empty: {:?}", eml_data);
+    //     return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Incomplete email data"));
+    // }
+
+    match eml_data.validate() {
+        Ok(_) => {},
+        Err(e) => {
+            log::warn!("Invalid email data: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid email data"));
+        }
     }
 
-    amqp_client.lock().await.publish(&eml_data).await;
-
-    Ok(())
+    Ok(eml_data)
 }
