@@ -4,12 +4,10 @@ mod types;
 mod state;
 mod amqp;
 
-// TODO: Add all kinds of comments
-
-// TODO: Try to add support for TLS / SSL / STARTTLS
 
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
+    // Initialize the application state
     let (listener, amqp_tx, host_name) = state::init().await;
 
     loop {
@@ -17,16 +15,18 @@ async fn main() -> tokio::io::Result<()> {
             Ok((socket, addr)) => {
                 log::trace!("Incoming connection from: {}", addr);
 
+                // Clone the server name and AMQP sender reference
                 let server_name = host_name.clone();
-                let ref_amqp_tx = prelude::arc_clone(&amqp_tx);
+                let amqp_txn = amqp_tx.clone();
 
+                // Spawn a new task to handle the client connection
                 tokio::spawn(async move {
                     match handler::email::handle_client(socket, server_name).await {
                         Ok(email) => {
                             log::info!("Received email: {:?}", email.get_id());
 
-                            // Send to AMQP
-                            if let Err(e) = ref_amqp_tx.send(email).await {
+                            // Send email to AMQP channel to process with backpressure (channel buffering)
+                            if let Err(e) = amqp_txn.send(email).await {
                                 log::error!("Failed to send email to AMQP channel: {}", e);
                             }
                         },

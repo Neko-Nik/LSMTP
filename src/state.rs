@@ -1,9 +1,9 @@
-use super::prelude::{TcpListener, Arc};
 use super::types::{Email, BaseConfig};
 use super::amqp::start_amqp_publisher;
+use super::prelude::TcpListener;
 
 
-pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, String) {
+pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, String) {
     env_logger::init();
 
     // Preparing to start the server by collecting environment variables
@@ -20,5 +20,5 @@ pub async fn init() -> (TcpListener, Arc<tokio::sync::mpsc::Sender<Email>>, Stri
     // Initialize the channel
     let tx = start_amqp_publisher(base_config.amqp_details);
 
-    (listener, Arc::new(tx), host_name)
+    (listener, tx, host_name)
 }

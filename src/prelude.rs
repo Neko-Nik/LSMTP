@@ -4,7 +4,6 @@ pub use std::env::var as env_var;
 pub use tokio::net::TcpListener;
 pub use tokio::sync::mpsc;
 pub use serde::Serialize;
-pub use std::sync::Arc;
 
 
 pub fn uuid_v4() -> String {
@@ -13,8 +12,4 @@ pub fn uuid_v4() -> String {
 
 pub fn current_timestamp() -> String {
     chrono::Utc::now().to_rfc3339()
-}
-
-pub fn arc_clone<T>(value: &Arc<T>) -> Arc<T> {
-    Arc::clone(value)
 }

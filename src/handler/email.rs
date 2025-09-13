@@ -67,6 +67,8 @@ pub async fn handle_client(socket: TcpStream, server_name: String) -> Result<Ema
     let mut eml_data = Email::empty();
     let mut data_mode: bool = false;
 
+    // TODO: Try to add support for TLS / SSL / STARTTLS
+
     // Start the SMTP conversation
     writer.write_all(&SMTPResponse::WelcomeMessage.as_bytes(Some(&server_name))).await?;
 
