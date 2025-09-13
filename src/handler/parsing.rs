@@ -11,17 +11,6 @@ pub enum SMTPCommand {
     Unknown,    // Unknown
 }
 
-pub enum SMTPResponse {
-    Ok,
-    Bye,
-    Data,
-    NotImplemented,
-    WelcomeMessage,
-    OkWithMessage,
-    HeloResponse,
-}
-
-
 impl SMTPCommand {
     pub fn from_str(command: &str) -> Self {
         let command_upper = command.to_uppercase();
@@ -45,6 +34,8 @@ impl SMTPCommand {
 
 
 // ------- Handle SMTP Commands ------- //
+
+pub enum SMTPResponse {}
 
 impl SMTPResponse {
     pub const OK_RESPONSE: &[u8] = b"250 OK\r\n";
