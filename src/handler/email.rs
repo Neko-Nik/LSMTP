@@ -47,10 +47,7 @@ impl EmailHandler {
             if self.data_mode {
                 if line == "." {
                     // end of DATA
-                    self.writer.write_all(&SMTPResponse::OK_WITH_MESSAGE_RESPONSE).await?;
                     self.data_mode = false;
-                    // Typically the DATA end completes a message; we can break to return Email
-                    // break;
                 } else {
                     // append data line to email content (dot-stuffing not handled here if needed)
                     self.email.add_content(format!("{}\n", line));
@@ -76,6 +73,7 @@ impl EmailHandler {
                 SMTPCommand::MailFrom => {
                     // safe slice: MAIL FROM: is 10 chars, but use get to avoid panic
                     let arg = line.get(10..).unwrap_or("").trim().to_string();
+                    // TODO: Handle "mail FROM:<from@test.com> size=79\r\n" where size of the full email should be less than configured
                     self.email.set_sender(arg);
                     self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
                 }
@@ -97,7 +95,13 @@ impl EmailHandler {
                     break;
                 }
 
+                SMTPCommand::Dot => {
+                    self.writer.write_all(&SMTPResponse::OK_WITH_MESSAGE_RESPONSE).await?;
+                    self.data_mode = false;
+                }
+
                 SMTPCommand::Unknown => {
+                    log::warn!("Unknown command received: {}", line);
                     self.writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
                 }
             }

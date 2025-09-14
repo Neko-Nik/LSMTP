@@ -6,6 +6,7 @@ pub enum SMTPCommand {
     RcptTo,     // Recipient To
 
     Data,       // Data
+    Dot,        // Dot
 
     Quit,       // Quit
     Unknown,    // Unknown
@@ -24,6 +25,8 @@ impl SMTPCommand {
             SMTPCommand::RcptTo
         } else if command_upper == "DATA" {
             SMTPCommand::Data
+        } else if command_upper == "." {
+            SMTPCommand::Dot
         } else if command_upper == "QUIT" {
             SMTPCommand::Quit
         } else {
@@ -49,23 +52,27 @@ impl SMTPResponse {
     }
 
     pub fn helo_response(server_name: &String) -> Vec<u8> {
-        let response = format!("250-{}\r\n", server_name);
+        let response = format!("250 {}\r\n", server_name);
         response.into_bytes()
     }
 
     pub fn ehlo_response(server_name: &String) -> Vec<u8> {
+        // Note that last response should not have "-" at the beginning
+        // But the top level responses should
+        // Example 1: [250 OK] (that is end)
+        // Example 2: [250-TEST  250-SIZE  250-PARAMETER  250 EndCMD] (as you can see end will not have "-" at the beginning)
         let mut response = format!("250-{}\r\n", server_name);
 
-        response.push_str("250-SIZE 52428800\r\n");
-        response.push_str("250-PIPELINING\r\n");
-        response.push_str("250-8BITMIME\r\n");
-        response.push_str("250-ENHANCEDSTATUSCODES\r\n");
-        response.push_str("250 STARTTLS\r\n");
-        response.push_str("250-SMTPUTF8\r\n");
-        response.push_str("250 CHUNKING\r\n");
-        response.push_str("250 DSN\r\n");
-        response.push_str("250 VRFY\r\n");
-        response.push_str("250 ETRN\r\n");
+        response.push_str("250 SIZE 52428800\r\n");
+        // response.push_str("250-PIPELINING\r\n");
+        // response.push_str("250-8BITMIME\r\n");
+        // response.push_str("250-ENHANCEDSTATUSCODES\r\n");
+        // response.push_str("250 STARTTLS\r\n");
+        // response.push_str("250-SMTPUTF8\r\n");
+        // response.push_str("250 CHUNKING\r\n");
+        // response.push_str("250 DSN\r\n");
+        // response.push_str("250 VRFY\r\n");
+        // response.push_str("250 ETRN\r\n");
 
         response.into_bytes()
     }
