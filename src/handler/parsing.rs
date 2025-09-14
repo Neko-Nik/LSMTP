@@ -87,7 +87,7 @@ impl SMTPResponse {
         let parts = addr_part.split_whitespace().collect::<Vec<&str>>();
 
         for part in parts {
-            if part.starts_with("size=") {
+            if part.to_uppercase().starts_with("SIZE=") {
                 if let Ok(size) = part[5..].parse::<usize>() {
                     if size >= max_email_size {
                         valid = false;
