@@ -9,7 +9,7 @@ const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
 /// Locally save the email to a path
 fn save_email_locally(email: &Email) {
     // Warn the user that we are using a temporary storage location
-    log::warn!("Saving email to temporary location, need further processing, due to failed publish");
+    log::warn!("Saving email to temporary location, manual intervention required: {}", email.get_id());
 
     // let path = format!("/tmp/lsmtp/{}.json", email.get_id());
     let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.get_id());
@@ -38,6 +38,8 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
         };
 
         while let Some(email) = rx.recv().await {
+            log::debug!("Publishing email to AMQP: {}", email.get_id());
+
             let payload = email.serialize();
             if let Err(e) = channel
                 .basic_publish(
@@ -49,7 +51,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                 )
                 .await
             {
-                log::error!("Publish to {} failed: {}", amqp_config.routing_key(), e);
+                log::error!("Publish to AMQP failed: {}", e);
                 save_email_locally(&email);
             }
         }
