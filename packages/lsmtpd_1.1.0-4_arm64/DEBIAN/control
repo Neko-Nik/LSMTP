@@ -1,0 +1,9 @@
+Package: lsmtpd
+Version: 1.1.0-4
+Section: base
+Priority: optional
+Depends: debconf, dialog
+Architecture: amd64
+Homepage: https://lsmtp.NekoNik.org
+Maintainer: Neko Nik <nikhil@nekonik.com>
+Description: A lightweight SMTP server for receiving mail and forwarding to an AMQP broker.

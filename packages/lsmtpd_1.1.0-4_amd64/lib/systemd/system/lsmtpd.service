@@ -1,0 +1,16 @@
+[Unit]
+Description=LSMTPD - Lightweight SMTP Daemon
+After=network.target
+Documentation=https://lsmtp.NekoNik.org
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/lsmtpd
+ExecStart=/usr/bin/lsmtpd
+Restart=on-failure
+User=root
+Group=root
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

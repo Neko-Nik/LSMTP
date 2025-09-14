@@ -1,0 +1,84 @@
+Template: lsmtpd/description
+Type: note
+Description: LSMTP — lightweight SMTP daemon
+ Thank you for using LSMTP.
+ .
+ A compact, secure SMTP server that accepts incoming mail and forwards
+ messages to an AMQP broker (for example RabbitMQ).
+ .
+ See the documentation and source code at https://lsmtp.nekonik.org and
+ https://github.com/Neko-Nik/LSMTP.
+ .
+ For support or to report issues, contact admin@nekonik.com
+
+Template: lsmtpd/rust_log
+Type: select
+Choices: TRACE, DEBUG, INFO, WARN, ERROR
+Default: INFO
+Description: LSMTP logging level
+ Choose the logging level the daemon should use.
+
+Template: lsmtpd/bind_address
+Type: string
+Default: 0.0.0.0
+Description: Bind address
+ The IP address the daemon should bind to.
+
+Template: lsmtpd/bind_port
+Type: string
+Default: 25
+Description: Bind port
+ The port number the daemon should listen on.
+
+Template: lsmtpd/server_name
+Type: string
+Default: nekonik.com
+Description: Server name
+ The hostname the server should present.
+
+Template: lsmtpd/amqp_host
+Type: string
+Description: AMQP host
+ The AMQP broker host (leave empty to disable if not configured).
+
+Template: lsmtpd/amqp_port
+Type: string
+Description: AMQP port
+ The AMQP broker port (leave empty to disable if not configured).
+
+Template: lsmtpd/amqp_username
+Type: string
+Description: AMQP username
+ The username used to connect to the AMQP broker.
+
+Template: lsmtpd/amqp_password
+Type: password
+Description: AMQP password
+ The password for the AMQP user (will not be shown on-screen when entered).
+
+Template: lsmtpd/amqp_vhost
+Type: string
+Description: AMQP vhost
+ The AMQP virtual host to use.
+
+Template: lsmtpd/amqp_exchange
+Type: string
+Description: AMQP exchange
+ The AMQP exchange to publish to.
+
+Template: lsmtpd/amqp_routing_key
+Type: string
+Description: AMQP routing key
+ The routing key to use when publishing messages.
+
+Template: lsmtpd/amqp_buffer_size
+Type: string
+Default: 10
+Description: AMQP buffer size
+ The internal buffer size before flushing to AMQP.
+
+Template: lsmtpd/max_email_size
+Type: string
+Default: 52428800
+Description: Max email size (bytes)
+ The maximum accepted email size in bytes.
