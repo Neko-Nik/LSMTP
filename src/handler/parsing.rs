@@ -5,10 +5,11 @@ pub enum SMTPCommand {
     MailFrom,   // Mail From
     RcptTo,     // Recipient To
 
-    Data,       // Data
-    Dot,        // Dot
+    Data,       // Email Raw Data
+    Dot,        // End of data
 
-    Quit,       // Quit
+    Quit,       // Close connection
+    Reset,      // Reset all
     Unknown,    // Unknown
 }
 
@@ -27,6 +28,8 @@ impl SMTPCommand {
             SMTPCommand::Data
         } else if command_upper == "." {
             SMTPCommand::Dot
+        } else if command_upper == "RSET" {
+            SMTPCommand::Reset
         } else if command_upper == "QUIT" {
             SMTPCommand::Quit
         } else {
@@ -86,7 +89,7 @@ impl SMTPResponse {
         for part in parts {
             if part.starts_with("size=") {
                 if let Ok(size) = part[5..].parse::<usize>() {
-                    if size >= 70 {
+                    if size >= 52428800 {
                         valid = false;
                     }
                 }

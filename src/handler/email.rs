@@ -104,7 +104,12 @@ impl EmailHandler {
                     self.data_mode = false;
                 }
 
-                // TODO: Handle rset command
+                SMTPCommand::Reset => {
+                    self.email.reset();
+                    self.buffer.clear();
+                    self.data_mode = false;
+                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                }
 
                 SMTPCommand::Unknown => {
                     log::warn!("Unknown command received: {}", line);

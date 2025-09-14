@@ -122,6 +122,12 @@ impl Email {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.email_content.clear();
+        self.recipients.clear();
+        self.sender.clear();
+    }
+
     pub fn get_id(&self) -> &str {
         &self.message_id
     }
