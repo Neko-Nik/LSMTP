@@ -1,0 +1,177 @@
+use super::prelude::{env_var, current_timestamp, uuid_v4, Serialize};
+
+
+pub struct AMQPConfig {
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    vhost: String,
+    exchange: String,
+    routing_key: String,
+    pub buffer_size: usize,
+}
+
+pub struct BaseConfig {
+    bind_address: String,
+    bind_port: u16,
+    pub internal: InternalConfig,
+    pub amqp_details: AMQPConfig,
+}
+
+pub struct InternalConfig {
+    pub server_name: String,
+    pub max_email_size: usize,
+}
+
+#[derive(Serialize)]
+pub struct Email {
+    timestamp: String,
+    message_id: String,
+    client_address: String,
+    recipients: Vec<String>,
+    email_content: String,
+    sender: String,
+}
+
+
+impl BaseConfig {
+    pub fn from_env() -> Self {
+        let bind_address = env_var("BIND_ADDRESS")
+            .expect("BIND_ADDRESS must be set to a valid IP address or hostname");
+        let bind_port = env_var("BIND_PORT")
+            .expect("BIND_PORT must be set to a valid u16")
+            .parse::<u16>()
+            .expect("BIND_PORT must be set to a valid u16");
+        let server_name = env_var("SERVER_NAME")
+            .expect("SERVER_NAME must be set");
+        let max_email_size = env_var("MAX_EMAIL_SIZE_BYTES")
+            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
+            .parse::<usize>()
+            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize");
+
+        let amqp_host = env_var("AMQP_HOST")
+            .expect("AMQP_HOST must be set");
+        let amqp_port = env_var("AMQP_PORT")
+            .expect("AMQP_PORT must be set to a valid u16")
+            .parse::<u16>()
+            .expect("AMQP_PORT must be set to a valid u16");
+        let amqp_username = env_var("AMQP_USERNAME")
+            .expect("AMQP_USERNAME must be set");
+        let amqp_password = env_var("AMQP_PASSWORD")
+            .expect("AMQP_PASSWORD must be set");
+        let amqp_vhost = env_var("AMQP_VHOST")
+            .expect("AMQP_VHOST must be set");
+        let amqp_exchange = env_var("AMQP_EXCHANGE")
+            .expect("AMQP_EXCHANGE must be set");
+        let amqp_routing_key = env_var("AMQP_ROUTING_KEY")
+            .expect("AMQP_ROUTING_KEY must be set");
+        let amqp_buffer_size = env_var("AMQP_BUFFER_SIZE")
+            .expect("AMQP_BUFFER_SIZE must be set to a valid usize")
+            .parse::<usize>()
+            .expect("AMQP_BUFFER_SIZE must be set to a valid usize");
+
+        log::info!("All environment variables have been loaded");
+        let amqp_details = AMQPConfig {
+            host: amqp_host,
+            port: amqp_port,
+            username: amqp_username,
+            password: amqp_password,
+            vhost: amqp_vhost,
+            exchange: amqp_exchange,
+            routing_key: amqp_routing_key,
+            buffer_size: amqp_buffer_size,
+        };
+
+        let internal = InternalConfig {
+            server_name,
+            max_email_size
+        };
+
+        BaseConfig {
+            bind_address,
+            bind_port,
+            internal,
+            amqp_details,
+        }
+    }
+
+    pub fn bind_uri(&self) -> String {
+        format!("{}:{}", self.bind_address, self.bind_port)
+    }
+}
+
+
+impl AMQPConfig {
+    pub fn amqp_url(&self) -> String {
+        format!(
+            "amqp://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.vhost
+        )
+    }
+
+    pub fn exchange(&self) -> String {
+        self.exchange.clone()
+    }
+
+    pub fn routing_key(&self) -> String {
+        self.routing_key.clone()
+    }
+}
+
+
+impl Email {
+    pub fn empty() -> Self {
+        Email {
+            timestamp: current_timestamp(),
+            message_id: uuid_v4(),
+            recipients: Vec::new(),
+            email_content: String::new(),
+            client_address: String::new(),
+            sender: String::new(),
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.email_content.clear();
+        self.recipients.clear();
+        self.sender.clear();
+    }
+
+    pub fn get_id(&self) -> &str {
+        &self.message_id
+    }
+
+    pub fn set_client_address(&mut self, client_address: String) {
+        self.client_address = client_address;
+    }
+
+    pub fn add_recipient(&mut self, recipient: String) {
+        self.recipients.push(recipient);
+    }
+
+    pub fn add_content(&mut self, content: String) {
+        self.email_content.push_str(&content);
+    }
+
+    pub fn set_sender(&mut self, sender: String) {
+        self.sender = sender;
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("Failed to serialize Email")
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.sender.is_empty() {
+            return Err("Sender is empty".into());
+        }
+        if self.recipients.is_empty() {
+            return Err("Recipients are empty".into());
+        }
+        if self.email_content.is_empty() {
+            return Err("Email content is empty".into());
+        }
+        Ok(())
+    }
+}

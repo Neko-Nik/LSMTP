@@ -1,35 +1,53 @@
-use utils::client::handle_client;
-use utils::base::get_env_vars;
-use tokio::net::TcpListener;
-use utils::amqp::AMQPClient;
-use tokio::sync::Mutex;
-use std::sync::Arc;
-
-mod utils;
+mod prelude;
+mod handler;
+mod types;
+mod state;
+mod amqp;
 
 
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
-    env_logger::init();
-    let config = Arc::new(get_env_vars().expect("Failed to get configuration variables"));
-    let amqp_client = Arc::new(Mutex::new(AMQPClient::new(&config.amqp_details).await));
-    let listener = TcpListener::bind(format!("{}:{}", config.bind_address, config.bind_port)).await?;
-    log::info!("Neko Nik - LSMTP Daemon started on port {}", config.bind_port);
+    // Initialize the application state
+    let (listener, amqp_tx, cfg) = state::init().await;
+    let shared_cfg = std::sync::Arc::new(cfg);
 
     loop {
         match listener.accept().await {
-            Ok((_socket, addr)) => {
+            Ok((socket, addr)) => {
                 log::trace!("Incoming connection from: {}", addr);
 
-                // Clone the AMQP client and server name for each client
-                let server_name: String = config.server_name.clone();
-                let amqp_client_clone = Arc::clone(&amqp_client);
+                // Clone the config and AMQP sender reference
+                let cfg_ref = shared_cfg.clone();
+                let amqp_txn = amqp_tx.clone();
 
+                // Spawn a new task to handle the client connection
                 tokio::spawn(async move {
-                    if let Err(err) = handle_client(_socket, server_name, amqp_client_clone).await {
-                        log::error!("Error handling client from {}: {:?}", addr, err);
-                    } else {
-                        log::trace!("Client from {} disconnected", addr);
+                    // Create a new email handler
+                    let client = handler::email::EmailHandler::new(socket);
+
+                    // Run the client with a 3 minute timeout
+                    match prelude::timeout(prelude::Duration::from_secs(180), client.run(&cfg_ref)).await {
+                        Ok(run_result) => {
+                            // client.run completed before timeout, now inspect result
+                            match run_result {
+                                Ok(email) => {
+                                    log::info!("Received email: {}", email.get_id());
+
+                                    // Send email to AMQP channel to process with backpressure (channel buffering)
+                                    if let Err(e) = amqp_txn.send(email).await {
+                                        log::error!("Failed to send email to AMQP channel: {}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    log::error!("Error handling client: {}", e);
+                                }
+                            }
+                        }
+
+                        // Timeout elapsed
+                        Err(elapsed) => {
+                            log::warn!("Connection handler timed out after 180s: dropping connection, timeout error details: {:?}", elapsed);
+                        }
                     }
                 });
             },
