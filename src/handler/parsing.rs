@@ -46,6 +46,7 @@ impl SMTPResponse {
     pub const BYE_RESPONSE: &[u8] = b"221 Bye\r\n";
     pub const NOT_IMPLEMENTED_RESPONSE: &[u8] = b"502 Command not implemented\r\n";
     pub const OK_WITH_MESSAGE_RESPONSE: &[u8] = b"250 OK: Message accepted\r\n";
+    pub const SIZE_LIMIT_EXCEEDED_RESPONSE: &[u8] = b"552 Message size exceeds fixed maximum message size\r\n";
 
     pub fn greet(server_name: &String) -> Vec<u8> {
         format!("220 {} LSMTP Server (Rust)\r\n", server_name).into_bytes()
@@ -77,4 +78,31 @@ impl SMTPResponse {
         response.into_bytes()
     }
 
+    pub fn mail_from_response(addr_part: &str) -> (String, bool) {
+        let mut sender = String::new();
+        let mut valid = true;
+        let parts = addr_part.split_whitespace().collect::<Vec<&str>>();
+
+        for part in parts {
+            if part.starts_with("size=") {
+                if let Ok(size) = part[5..].parse::<usize>() {
+                    if size >= 70 {
+                        valid = false;
+                    }
+                }
+            } else if part.starts_with('<') && part.ends_with('>') {
+                sender = part[1..part.len()-1].to_string();
+            } else if part.contains('@') {
+                // In some cases, the address may be specified without angle brackets
+                sender = part.to_string();
+            } else {
+                // Invalid address format
+                log::warn!("Invalid MAIL FROM address format: {}", addr_part);
+                valid = false;
+                break;
+            }
+        }
+
+        (sender, valid)
+    }
 }

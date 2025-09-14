@@ -72,9 +72,13 @@ impl EmailHandler {
 
                 SMTPCommand::MailFrom => {
                     // safe slice: MAIL FROM: is 10 chars, but use get to avoid panic
-                    let arg = line.get(10..).unwrap_or("").trim().to_string();
-                    // TODO: Handle "mail FROM:<from@test.com> size=79\r\n" where size of the full email should be less than configured
-                    self.email.set_sender(arg);
+                    let addr_part = line.get(10..).unwrap_or("").trim();
+                    let (sender, valid) = SMTPResponse::mail_from_response(addr_part);
+                    if !valid {
+                        self.writer.write_all(&SMTPResponse::SIZE_LIMIT_EXCEEDED_RESPONSE).await?;
+                        continue;
+                    }
+                    self.email.set_sender(sender);
                     self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
                 }
 
@@ -99,6 +103,8 @@ impl EmailHandler {
                     self.writer.write_all(&SMTPResponse::OK_WITH_MESSAGE_RESPONSE).await?;
                     self.data_mode = false;
                 }
+
+                // TODO: Handle rset command
 
                 SMTPCommand::Unknown => {
                     log::warn!("Unknown command received: {}", line);
