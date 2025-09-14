@@ -1,4 +1,4 @@
-use super::types::{Email, BaseConfig};
+use super::types::{Email, BaseConfig, InternalConfig};
 use super::amqp::start_amqp_publisher;
 use super::prelude::TcpListener;
 
@@ -7,7 +7,7 @@ use super::prelude::TcpListener;
 const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
 
 
-pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, String) {
+pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, InternalConfig) {
     // Initialize logging
     env_logger::init();
 
@@ -16,7 +16,6 @@ pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, String) {
 
     // Preparing to start the server by collecting environment variables
     let base_config = BaseConfig::from_env();
-    let host_name = base_config.host_name();
 
     // Initialize the TCP listener
     let listener = TcpListener::bind(base_config.bind_uri())
@@ -28,5 +27,5 @@ pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>, String) {
     // Initialize the channel
     let tx = start_amqp_publisher(base_config.amqp_details);
 
-    (listener, tx, host_name)
+    (listener, tx, base_config.internal)
 }

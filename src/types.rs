@@ -15,11 +15,16 @@ pub struct AMQPConfig {
 pub struct BaseConfig {
     bind_address: String,
     bind_port: u16,
-    server_name: String,
+    pub internal: InternalConfig,
     pub amqp_details: AMQPConfig,
 }
 
-#[derive(Debug, Serialize)]
+pub struct InternalConfig {
+    pub server_name: String,
+    pub max_email_size: usize,
+}
+
+#[derive(Serialize)]
 pub struct Email {
     timestamp: String,
     message_id: String,
@@ -40,6 +45,10 @@ impl BaseConfig {
             .expect("BIND_PORT must be set to a valid u16");
         let server_name = env_var("SERVER_NAME")
             .expect("SERVER_NAME must be set");
+        let max_email_size = env_var("MAX_EMAIL_SIZE_BYTES")
+            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
+            .parse::<usize>()
+            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize");
 
         let amqp_host = env_var("AMQP_HOST")
             .expect("AMQP_HOST must be set");
@@ -74,20 +83,21 @@ impl BaseConfig {
             buffer_size: amqp_buffer_size,
         };
 
+        let internal = InternalConfig {
+            server_name,
+            max_email_size
+        };
+
         BaseConfig {
             bind_address,
             bind_port,
-            server_name,
+            internal,
             amqp_details,
         }
     }
 
     pub fn bind_uri(&self) -> String {
         format!("{}:{}", self.bind_address, self.bind_port)
-    }
-
-    pub fn host_name(&self) -> String {
-        self.server_name.clone()
     }
 }
 

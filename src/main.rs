@@ -8,15 +8,16 @@ mod amqp;
 #[tokio::main]
 async fn main() -> tokio::io::Result<()> {
     // Initialize the application state
-    let (listener, amqp_tx, host_name) = state::init().await;
+    let (listener, amqp_tx, cfg) = state::init().await;
+    let shared_cfg = std::sync::Arc::new(cfg);
 
     loop {
         match listener.accept().await {
             Ok((socket, addr)) => {
                 log::trace!("Incoming connection from: {}", addr);
 
-                // Clone the server name and AMQP sender reference
-                let server_name = host_name.clone();
+                // Clone the config and AMQP sender reference
+                let cfg_ref = shared_cfg.clone();
                 let amqp_txn = amqp_tx.clone();
 
                 // Spawn a new task to handle the client connection
@@ -25,7 +26,7 @@ async fn main() -> tokio::io::Result<()> {
                     let client = handler::email::EmailHandler::new(socket);
 
                     // Run the client with a 3 minute timeout
-                    match prelude::timeout(prelude::Duration::from_secs(180), client.run(server_name)).await {
+                    match prelude::timeout(prelude::Duration::from_secs(180), client.run(&cfg_ref)).await {
                         Ok(run_result) => {
                             // client.run completed before timeout, now inspect result
                             match run_result {
