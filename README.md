@@ -1,79 +1,55 @@
-# **LSMTPD - Lightweight SMTP Daemon**
-
+<div align="center">
+    <a href="https://lsmtp.nekonik.org">
+        <img alt="LSMTP" src="https://lsmtp.nekonik.org/img/logo.svg" width="300px">
+    </a>
+    <br>
+        <strong>🚀 A minimalistic, lightweight SMTP server for receiving mail and forwarding to AMQP.</strong>
+        <br>
+        <strong>⚡ High-performance, easy to configure, built for modern email workflows.</strong>
+</div>
+<br>
 <p align="center">
-  <a href="LSMTP-Paper.pdf"><b>Paper Link<b></b>👀</a>
+    <!-- <a href="https://github.com/Neko-Nik/LSMTP/actions/workflows/codeql.yml">
+        <img src="https://github.com/Neko-Nik/LSMTP/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" style="max-width: 100%;">
+    </a> -->
+    <a href="https://github.com/Neko-Nik/LSMTP/blob/master/LICENSE">
+        <img src="https://img.shields.io/github/license/Neko-Nik/LSMTP" alt="License">
+    </a>
+    <!-- <a href="https://github.com/Neko-Nik/LSMTP/actions/workflows/compliance.yml">
+        <img src="https://github.com/Neko-Nik/LSMTP/actions/workflows/compliance.yml/badge.svg" alt="Compliance" style="max-width: 100%;">
+    </a> -->
+    <!-- <a href="https://github.com/Neko-Nik/LSMTP/actions/workflows/release.yml">
+        <img src="https://github.com/Neko-Nik/LSMTP/actions/workflows/release.yml/badge.svg" alt="Release" style="max-width: 100%;">
+    </a> -->
+    <!-- <a href="https://github.com/Neko-Nik/LSMTP/actions/workflows/storybook.yml">
+        <img src="https://github.com/Neko-Nik/LSMTP/actions/workflows/storybook.yml/badge.svg" alt="Publish stories if changed" style="max-width: 100%;">
+    </a> -->
+    <!-- <img src="https://img.shields.io/badge/Dependabot-active-brightgreen.svg" alt="Dependabot Badge"> -->
+    <img src="https://img.shields.io/github/languages/code-size/Neko-Nik/LSMTP" alt="GitHub code size">
+    <img src="https://img.shields.io/github/commit-activity/w/Neko-Nik/LSMTP" alt="GitHub commit activity">
+    <img src="https://img.shields.io/github/last-commit/Neko-Nik/LSMTP" alt="GitHub last commit">
+    <a href="https://github.com/Neko-Nik/LSMTP/issues">
+        <img src="https://img.shields.io/github/issues/Neko-Nik/LSMTP" alt="GitHub issues">
+    </a>
+    <a href="https://github.com/Neko-Nik/LSMTP/pulls">
+        <img src="https://img.shields.io/github/issues-pr/Neko-Nik/LSMTP" alt="GitHub pull requests">
+    </a>
+    <a href="https://github.com/Neko-Nik/LSMTP/releases">
+        <img src="https://img.shields.io/github/v/release/Neko-Nik/LSMTP.svg?style=flat" alt="GitHub Release">
+    </a>
+    <a href="LSMTP-Paper.pdf">
+        <img src="https://img.shields.io/badge/Paper-Available-brightgreen.svg" alt="Paper Badge">
+    </a>
+    <br>
+    <a href="https://doi.org/10.31224/4377"><b>Paper Link</b>👀</a>
 </p>
 
-A minimalistic, lightweight SMTP server for receiving mail and forwarding to AMQP. It's lightweight, high-performance, and easy to configure for your needs.
+_LSMTPD (Lightweight SMTP Daemon)_ isn’t just another SMTP server - it’s a lightweight, high-performance mail gateway designed to simplify your stack, accelerate delivery, and integrate seamlessly with modern messaging systems.
 
+## 📖 Full Documentation
 
-## **Installation & Setup**  
-
-### **1. Prerequisites**
-
-Ensure you have the following installed:
-
-- **Rust** (latest stable version) → [Install Rust](https://www.rust-lang.org/tools/install)  
-- **Cargo** (comes with Rust)  
-- **RabbitMQ** (for message queuing) or any other AMQP server  
-
-### **2. Environment Variables**  
-
-Before running LSMTPD, set the required environment variables:  
-
-```sh
-export RUST_LOG=lsmtpd=TRACE
-export BIND_ADDRESS=0.0.0.0
-export BIND_PORT=25
-export SERVER_NAME=nekonik.com
-export AMQP_HOST=rabbitmq.nekonik.com
-export AMQP_PORT=5672
-export AMQP_USERNAME=admin
-export AMQP_PASSWORD=admin
-export AMQP_VHOST=/
-export AMQP_EXCHANGE=lsmtp
-export AMQP_ROUTING_KEY=lsmtp
-```
-
-Make sure to replace any missing values, like `AMQP_PORT`, with the correct configuration.  
-
-### **3. Running the Server**  
-
-Once the environment variables are set, start the SMTP daemon using:  
-
-```sh
-cargo run -r
-```
-
-This compiles and runs the project in **release mode** for better performance.  
-
----
-
-## **Configuration**
-
-- **Logging:** Uses Rust's `RUST_LOG` for debugging (`TRACE` mode)
-- **Binding:** Listens on `0.0.0.0:25` by default
-- **AMQP Integration:** Messages are forwarded using the provided any AMQP server tested for RabbitMQ
-
----
-
-## **Development & Contribution**  
-
-To contribute:
-
-1. Fork the repository
-2. Clone or fork the [repository](https://github.com/Neko-Nik/LSMTP)
-3. Install dependencies and to run the project:
-   ```sh
-   cargo run -r
-   ```
-4. Make changes, test, and submit a pull request.
-
----
-
-### **Need Help?**  
-
-For issues, open a ticket in the [GitHub Issues](https://github.com/Neko-Nik/LSMTP/issues) 🚀  
+- **Website:** [lsmtp.nekonik.org](https://lsmtp.nekonik.org)  
+- **Docs Repo:** [github.com/Neko-Nik-Org/LSMTP-Docs](https://github.com/Neko-Nik-Org/LSMTP-Docs)
 
 ---
 
@@ -81,6 +57,7 @@ For issues, open a ticket in the [GitHub Issues](https://github.com/Neko-Nik/LSM
 
 - **Paper (Research Work)**: Licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
 - **Code (Software)**: Licensed under [GPL-3.0](https://github.com/Neko-Nik/LSMTP/blob/main/LICENSE)
+- **Documentation**: Licensed under [CC0-1.0](https://github.com/Neko-Nik-Org/LSMTP-Docs/blob/main/LICENSE)
 
 ---
 
