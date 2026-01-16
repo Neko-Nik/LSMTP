@@ -48,7 +48,6 @@ impl SMTPResponse {
     pub const DATA_RESPONSE: &[u8] = b"354 End data with <CR><LF>.<CR><LF>\r\n";
     pub const BYE_RESPONSE: &[u8] = b"221 Bye\r\n";
     pub const NOT_IMPLEMENTED_RESPONSE: &[u8] = b"502 Command not implemented\r\n";
-    pub const OK_WITH_MESSAGE_RESPONSE: &[u8] = b"250 OK: Message accepted\r\n";
     pub const SIZE_LIMIT_EXCEEDED_RESPONSE: &[u8] = b"552 Message size exceeds fixed maximum message size\r\n";
 
     pub fn greet(server_name: &String) -> Vec<u8> {
@@ -58,6 +57,10 @@ impl SMTPResponse {
     pub fn helo_response(server_name: &String) -> Vec<u8> {
         let response = format!("250 {}\r\n", server_name);
         response.into_bytes()
+    }
+
+    pub fn data_end_response(message_id: &str) -> Vec<u8> {
+        format!("250 2.0.0 Ok: queued as {}\r\n", message_id).into_bytes()
     }
 
     pub fn ehlo_response(server_name: &String, max_email_size: usize) -> Vec<u8> {
