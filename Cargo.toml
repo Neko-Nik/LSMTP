@@ -2,7 +2,7 @@
 name = "lsmtpd" # Lightweight Simple Mail Transfer Protocol Daemon (LSMTPD)
 authors = ["Neko Nik <admin@nekonik.com>"]
 description = "A minimalistic, lightweight SMTP server for receiving mail and forwarding to an AMQP broker."
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 license = "GPL-3.0"
 repository = "https://github.com/Neko-Nik/LSMTP"
