@@ -8,11 +8,12 @@ const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
 
 /// Locally save the email to a path
 fn save_email_locally(email: &Email) {
-    // Warn the user that we are using a temporary storage location
-    log::warn!("Saving email to temporary location, manual intervention required: {}", email.get_id());
-
-    // let path = format!("/tmp/lsmtp/{}.json", email.get_id());
     let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.get_id());
+
+    // Warn the user that we are using a temporary storage location
+    log::warn!("Saving email to temporary location, manual intervention required: {}", path);
+
+    // Write the email to the file system
     std::fs::write(path, email.serialize()).unwrap();
 }
 
@@ -32,7 +33,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             }
         };
 
-        let channel = match connection.create_channel().await {
+        let mut channel = match connection.create_channel().await {
             Ok(ch) => ch,
             Err(e) => { log::error!("create_channel failed: {}", e); return; }
         };
@@ -40,18 +41,33 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
         while let Some(email) = rx.recv().await {
             log::debug!("Publishing email to AMQP: {}", email.get_id());
 
-            let payload = email.serialize();
+            // Check if the channel is still open, recreate if needed
+            channel = if !channel.status().connected() {
+                log::warn!("AMQP channel disconnected, recreating channel");
+                match connection.create_channel().await {
+                    Ok(ch) => ch,
+                    Err(e) => {
+                        log::error!("Failed to recreate channel: {:?}", e);
+                        save_email_locally(&email);
+                        continue;
+                    }
+                }
+            } else {
+                channel
+            };
+
+            // publish the message
             if let Err(e) = channel
                 .basic_publish(
                     &amqp_config.exchange(),
                     &amqp_config.routing_key(),
                     BasicPublishOptions::default(),
-                    &payload,
+                    &email.serialize(),
                     BasicProperties::default(),
                 )
                 .await
             {
-                log::error!("Publish to AMQP failed: {}", e);
+                log::error!("Publish to AMQP failed: {:?}", e);
                 save_email_locally(&email);
             }
         }
