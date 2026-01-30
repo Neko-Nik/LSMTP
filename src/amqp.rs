@@ -39,15 +39,16 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
         };
 
         while let Some(email) = rx.recv().await {
-            log::debug!("Publishing email to AMQP: {}", email.get_id());
+            let msg_id: &str = email.get_id();
+            log::debug!("Publishing email to AMQP: {}", msg_id);
 
             // Check if the channel is still open, recreate if needed
             channel = if !channel.status().connected() {
-                log::warn!("AMQP channel disconnected, recreating channel");
+                log::warn!("AMQP channel disconnected, recreating channel for email: {}", msg_id);
                 match connection.create_channel().await {
                     Ok(ch) => ch,
                     Err(e) => {
-                        log::error!("Failed to recreate channel: {:?}", e);
+                        log::error!("Failed to recreate channel: {:?} for email: {}", e, msg_id);
                         save_email_locally(&email);
                         continue;
                     }
@@ -57,18 +58,24 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             };
 
             // publish the message
-            if let Err(e) = channel
-                .basic_publish(
-                    &amqp_config.exchange(),
-                    &amqp_config.routing_key(),
-                    BasicPublishOptions::default(),
-                    &email.serialize(),
-                    BasicProperties::default(),
-                )
-                .await
-            {
-                log::error!("Publish to AMQP failed: {:?}", e);
-                save_email_locally(&email);
+            match channel.basic_publish(
+                &amqp_config.exchange(),
+                &amqp_config.routing_key(),
+                BasicPublishOptions::default(),
+                &email.serialize(),
+                BasicProperties::default(),
+            ).await {
+                Ok(confirm) => {
+                    if let Err(e) = confirm.await {
+                        log::error!("AMQP publish not confirmed: {:?} for email: {}", e, msg_id);
+                        save_email_locally(&email);
+                    }
+                    log::trace!("AMQP publish confirmed for email: {}", msg_id);
+                }
+                Err(e) => {
+                    log::error!("AMQP publish failed: {:?} for email: {}", e, msg_id);
+                    save_email_locally(&email);
+                }
             }
         }
 
