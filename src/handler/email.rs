@@ -104,6 +104,10 @@ impl EmailHandler {
                 SMTPCommand::Dot => {
                     self.writer.write_all(&SMTPResponse::data_end_response(self.email.get_id())).await?;
                     self.data_mode = false;
+
+                    // We close the connection immediately after receiving the email data, as per typical SMTP behavior.
+                    self.writer.shutdown().await?;
+                    break;
                 }
 
                 SMTPCommand::Reset => {
