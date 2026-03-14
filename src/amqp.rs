@@ -17,10 +17,12 @@ fn save_email_locally(email: &Email) {
     let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.get_id());
 
     // Warn the user that we are using a temporary storage location
-    log::warn!("Saving email to temporary location, manual intervention required: {}", path);
+    log::warn!("Saving email to temporary location, manual intervention required: {}", &path);
 
     // Write the email to the file system
-    std::fs::write(path, email.serialize()).unwrap();
+    if let Err(e) = std::fs::write(&path, email.serialize()) {
+        log::error!("Failed to save email locally and is totally lost! path: {}, error: {}", &path, e);
+    }
 }
 
 
@@ -41,6 +43,7 @@ async fn connect_amqp(amqp_config: &AMQPConfig) -> Option<AMQP> {
             return None;
         }
 
+        log::info!("Attempting to connect to AMQP (try {})", retries + 1);
         match Connection::connect(
             &amqp_config.amqp_url(),
             ConnectionProperties::default(),
@@ -62,7 +65,7 @@ async fn connect_amqp(amqp_config: &AMQPConfig) -> Option<AMQP> {
         }
 
         retries += 1;
-        sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(3)).await;    // Wait before retrying
     }
 }
 
@@ -89,7 +92,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             };
 
             if needs_reconnect {
-                log::warn!("AMQP connection lost, reconnecting");
+                log::warn!("AMQP connection lost, reconnecting!");
                 if let Some(old) = amqp.take() {
                     close_amqp(old).await;
                 }
@@ -101,7 +104,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                 continue;
             };
 
-            // Publish
+            // Publish the email to the configured exchange and routing key
             let publish = active.channel.basic_publish(
                 &amqp_config.exchange(),
                 &amqp_config.routing_key(),
@@ -123,7 +126,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                     log::trace!("AMQP publish confirmed for email: {}", msg_id);
                 }
                 Err(e) => {
-                    log::error!("AMQP publish failed: {:?} for {}", e, msg_id);
+                    log::error!("AMQP publish failed: {:?} for email: {}", e, msg_id);
                     save_email_locally(&email);
                     if let Some(old) = amqp.take() {
                         close_amqp(old).await;
