@@ -45,8 +45,8 @@ async fn main() -> tokio::io::Result<()> {
                         }
 
                         // Timeout elapsed
-                        Err(elapsed) => {
-                            log::warn!("Connection handler timed out after 180s: dropping connection, timeout error details: {:?}", elapsed);
+                        Err(_) => {
+                            log::warn!("Connection handler timed out after 180 seconds for client: {}", addr);
                         }
                     }
                 });
