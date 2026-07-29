@@ -64,15 +64,15 @@ impl SMTPResponse {
     }
 
     pub fn ehlo_response(server_name: &String, max_email_size: usize) -> Vec<u8> {
-        // Note that last response should not have "-" at the beginning
+        // Note that the last response should not have "-" at the beginning
         // But the top level responses should
         // Example 1: [250 OK] (that is end)
         // Example 2: [250-TEST  250-SIZE  250-PARAMETER  250 EndCMD] (as you can see end will not have "-" at the beginning)
         let mut response = format!("250-{}\r\n", server_name);
 
-        response.push_str(format!("250 SIZE {}\r\n", max_email_size).as_str());
+        response.push_str(format!("250-SIZE {}\r\n", max_email_size).as_str());
+        response.push_str("250-8BITMIME\r\n");
         // response.push_str("250-PIPELINING\r\n");
-        // response.push_str("250-8BITMIME\r\n");
         // response.push_str("250-ENHANCEDSTATUSCODES\r\n");
         // response.push_str("250 STARTTLS\r\n");
         // response.push_str("250-SMTPUTF8\r\n");
@@ -80,6 +80,7 @@ impl SMTPResponse {
         // response.push_str("250 DSN\r\n");
         // response.push_str("250 VRFY\r\n");
         // response.push_str("250 ETRN\r\n");
+        response.push_str("250 OK\r\n");
 
         response.into_bytes()
     }
@@ -90,7 +91,9 @@ impl SMTPResponse {
         let parts = addr_part.split_whitespace().collect::<Vec<&str>>();
 
         for part in parts {
-            if part.to_uppercase().starts_with("SIZE=") {
+            let upper = part.to_uppercase();
+
+            if upper.starts_with("SIZE=") {
                 if let Ok(size) = part[5..].parse::<usize>() {
                     if size >= max_email_size {
                         valid = false;
