@@ -1,11 +1,8 @@
 use lapin::{BasicProperties, Connection, ConnectionProperties, options::BasicPublishOptions};
-use crate::types::{AMQPConfig, Email};
+use crate::models::configs::{AMQPConfig, TEMP_EMAIL_DIR};
 use tokio::time::{sleep, Duration};
+use crate::models::email::Email;
 use tokio::sync::mpsc;
-
-
-// Temporary email storage directory if the AMQP publish fails
-const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
 
 
 struct AMQP {
@@ -16,7 +13,7 @@ struct AMQP {
 
 /// Locally save the email to a path
 fn save_email_locally(email: &Email) {
-    let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.message_id);
+    let path = format!("{}/{}.json", TEMP_EMAIL_DIR.to_string(), email.message_id);
 
     // Warn the user that we are using a temporary storage location
     log::warn!("Saving email to temporary location, manual intervention required: {}", &path);

@@ -1,6 +1,8 @@
 use std::env::var as env_var;
 use std::sync::LazyLock;
-use serde::Serialize;
+
+
+// ------- Structs ------- //
 
 
 pub struct AMQPConfig {
@@ -14,38 +16,28 @@ pub struct AMQPConfig {
     pub buffer_size: usize,
 }
 
+
 pub struct BaseConfig {
     bind_address: String,
     bind_port: u16,
     pub amqp_details: AMQPConfig,
 }
 
-#[derive(Serialize)]
-pub struct Email {
-    timestamp: String,
-    pub message_id: String,
-    client_address: String,
-    recipients: Vec<String>,
-    email_content: Vec<u8>,
-    sender: String,
-}
 
-#[derive(Serialize)]
-struct EmailPayload {
-    timestamp: String,
-    message_id: String,
-    client_address: String,
-    recipients: Vec<String>,
-    email_content: String,
-    sender: String,
-}
+// ------- Static Variables ------- //
 
 
+// Name of the server, used only at greeting, HELO, EHLO commands
 pub static SERVER_NAME: LazyLock<String> = LazyLock::new(|| {
+    // Read the SERVER_NAME environment variable and panic if it's not set
     env_var("SERVER_NAME").expect("SERVER_NAME must be set")
 });
 
+
+// Maximum email size that the server will accept
 pub static MAX_EMAIL_SIZE_BYTES: LazyLock<usize> = LazyLock::new(|| {
+    // Read the MAX_EMAIL_SIZE_BYTES environment variable
+    // and panic if it's not set or cannot be parsed as a usize
     env_var("MAX_EMAIL_SIZE_BYTES")
         .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
         .parse::<usize>()
@@ -53,7 +45,29 @@ pub static MAX_EMAIL_SIZE_BYTES: LazyLock<usize> = LazyLock::new(|| {
 });
 
 
+// Temporary email storage directory if the AMQP publish fails
+pub static TEMP_EMAIL_DIR: LazyLock<String> = LazyLock::new(|| {
+    // Read the TEMP_EMAIL_DIR environment variable and panic if it's not set
+    env_var("TEMP_EMAIL_DIR").expect("TEMP_EMAIL_DIR must be set to a valid directory path")
+});
+
+
+// Maximum timeout for client connections in seconds
+pub static MAX_TIMEOUT_SECS: LazyLock<u64> = LazyLock::new(|| {
+    // Read the MAX_TIMEOUT_SECS environment variable
+    // and panic if it's not set or cannot be parsed as a u64
+    env_var("MAX_TIMEOUT_SECS")
+        .expect("MAX_TIMEOUT_SECS must be set to a valid u64")
+        .parse::<u64>()
+        .expect("MAX_TIMEOUT_SECS must be set to a valid u64")
+});
+
+
+// ------- Implementations ------- //
+
+
 impl BaseConfig {
+    /// Reads configuration from environment variables and returns a BaseConfig instance.
     pub fn from_env() -> Self {
         let bind_address = env_var("BIND_ADDRESS")
             .expect("BIND_ADDRESS must be set to a valid IP address or hostname");
@@ -102,6 +116,7 @@ impl BaseConfig {
         }
     }
 
+    /// Returns the bind URI in the format "address:port".
     pub fn bind_uri(&self) -> String {
         format!("{}:{}", self.bind_address, self.bind_port)
     }
@@ -109,6 +124,7 @@ impl BaseConfig {
 
 
 impl AMQPConfig {
+    /// Constructs the AMQP URL in the format "amqp://username:password@host:port/vhost".
     pub fn amqp_url(&self) -> String {
         format!(
             "amqp://{}:{}@{}:{}/{}",
@@ -116,73 +132,13 @@ impl AMQPConfig {
         )
     }
 
+    /// Returns the exchange name.
     pub fn exchange(&self) -> String {
         self.exchange.clone()
     }
 
+    /// Returns the routing key.
     pub fn routing_key(&self) -> String {
         self.routing_key.clone()
-    }
-}
-
-
-impl Email {
-    pub fn new(msg_id: uuid::Uuid) -> Self {
-        Email {
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            message_id: msg_id.to_string(),
-            recipients: Vec::new(),
-            email_content: Vec::new(),
-            client_address: String::new(),
-            sender: String::new(),
-        }
-    }
-
-    pub fn reset(&mut self) {
-        self.email_content.clear();
-        self.recipients.clear();
-        self.sender.clear();
-    }
-
-    pub fn set_client_address(&mut self, client_address: String) {
-        self.client_address = client_address;
-    }
-
-    pub fn add_recipient(&mut self, recipient: String) {
-        self.recipients.push(recipient);
-    }
-
-    pub fn add_content(&mut self, content: Vec<u8>) {
-        self.email_content.extend_from_slice(&content);
-    }
-
-    pub fn set_sender(&mut self, sender: String) {
-        self.sender = sender;
-    }
-
-    pub fn serialize(&self) -> Vec<u8> {
-        let payload = EmailPayload {
-            timestamp: self.timestamp.clone(),
-            message_id: self.message_id.clone(),
-            client_address: self.client_address.clone(),
-            recipients: self.recipients.clone(),
-            email_content: String::from_utf8_lossy(&self.email_content).into_owned(),
-            sender: self.sender.clone(),
-        };
-
-        serde_json::to_vec(&payload).expect("Failed to serialize Email")
-    }
-
-    pub fn validate(&self) -> Result<(), String> {
-        if self.sender.is_empty() {
-            return Err("Sender is empty".into());
-        }
-        if self.recipients.is_empty() {
-            return Err("Recipients are empty".into());
-        }
-        if self.email_content.is_empty() {
-            return Err("Email content is empty".into());
-        }
-        Ok(())
     }
 }

@@ -28,8 +28,15 @@ impl fmt::Display for LSMTPError {
 }
 
 
-// TODO: Not required for now, but can be useful for future error handling and propagation
-impl Error for LSMTPError {}
+impl Error for LSMTPError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            LSMTPError::IoError(e) => Some(e),
+            // LSMTPError::AmqpError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 
 impl From<std::io::Error> for LSMTPError {
