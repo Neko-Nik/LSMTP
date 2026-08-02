@@ -17,7 +17,7 @@ pub async fn init() -> (TcpListener, EmailSender) {
     env_logger::init();
 
     // Create temporary email storage directory if it doesn't exist
-    std::fs::create_dir_all(TEMP_EMAIL_DIR.to_string()).unwrap();
+    std::fs::create_dir_all(TEMP_EMAIL_DIR.as_str()).unwrap();
 
     // Preparing to start the server by collecting environment variables
     let base_config = BaseConfig::from_env();
@@ -71,7 +71,7 @@ pub async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: Ema
 
 /// Locally save the contents of an email to a temporary directory for later retrieval or manual intervention
 pub fn save_local_email(message_id: &str, contents: &[u8]) {
-    let path = format!("{}/{}.json", TEMP_EMAIL_DIR.to_string(), message_id);
+    let path = format!("{}/{}.json", TEMP_EMAIL_DIR.as_str(), message_id);
 
     // Warn the user that we are using a temporary storage location
     log::warn!("Saving email to temporary location, manual intervention required: {}", &path);

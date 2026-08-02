@@ -200,7 +200,7 @@ impl SMTPResponse {
         // But the top level responses should
         // Example 1: [250 OK] (that is end)
         // Example 2: [250-TEST  250-SIZE  250-PARAMETER  250 EndCMD] (as you can see end will not have "-" at the beginning)
-        let mut response = format!("250-{}\r\n", SERVER_NAME.to_string());
+        let mut response = format!("250-{}\r\n", SERVER_NAME.as_str());
 
         response.push_str(format!("250-SIZE {}\r\n", *MAX_EMAIL_SIZE_BYTES).as_str());
         response.push_str("250-8BITMIME\r\n");
@@ -225,8 +225,8 @@ impl SMTPResponse {
             SMTPResponse::Data => b"354 End data with <CR><LF>.<CR><LF>\r\n".to_vec(),
             SMTPResponse::NotImplemented => b"502 Command not implemented\r\n".to_vec(),
             SMTPResponse::SizeExceeded => b"552 Message size exceeds fixed maximum message size\r\n".to_vec(),
-            SMTPResponse::Greet => format!("220 {} LSMTP Server (Rust)\r\n", SERVER_NAME.to_string()).into_bytes(),
-            SMTPResponse::Helo => format!("250 {}\r\n", SERVER_NAME.to_string()).into_bytes(),
+            SMTPResponse::Greet => format!("220 {} LSMTP Server (Rust)\r\n", SERVER_NAME.as_str()).into_bytes(),
+            SMTPResponse::Helo => format!("250 {}\r\n", SERVER_NAME.as_str()).into_bytes(),
             SMTPResponse::Ehlo => Self::ehlo_response(),
             SMTPResponse::DataEnd(message_id) => format!("250 Ok: queued as {}\r\n", message_id).into_bytes(),
         }
