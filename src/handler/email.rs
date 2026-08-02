@@ -1,7 +1,7 @@
 use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
-use crate::models::configs::{SERVER_NAME, MAX_EMAIL_SIZE_BYTES};
 use crate::models::email::{Email, SMTPCommand, SMTPResponse};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use crate::models::configs::MAX_EMAIL_SIZE_BYTES;
 use crate::errors::LSMTPError;
 
 
@@ -60,10 +60,15 @@ impl EmailHandler {
         self.email.add_content(b"\r\n".to_vec());
     }
 
+    async fn reply(&mut self, response: SMTPResponse) -> Result<(), LSMTPError> {
+        self.writer.write_all(&response.into_bytes()).await?;
+        Ok(())
+    }
+
     /// Run the client session. Consumes self and returns the Email (or IO error).
     pub async fn run(mut self) -> Result<Email, LSMTPError> {
         // greet the client
-        self.writer.write_all(&SMTPResponse::greet(&SERVER_NAME)).await?;
+        self.reply(SMTPResponse::Greet).await?;
 
         loop {
             let Some((line_bytes, line)) = self.read_next_line().await? else {
@@ -87,13 +92,13 @@ impl EmailHandler {
                     // safely get argument after command: avoid direct slicing
                     let arg = line.get(5..).unwrap_or("").trim().to_string();
                     self.email.set_client_address(arg);
-                    self.writer.write_all(&SMTPResponse::helo_response(&SERVER_NAME)).await?;
+                    self.reply(SMTPResponse::Helo).await?;
                 }
 
                 SMTPCommand::EHLO => {
                     let arg = line.get(5..).unwrap_or("").trim().to_string();
                     self.email.set_client_address(arg);
-                    self.writer.write_all(&SMTPResponse::ehlo_response(&SERVER_NAME, *MAX_EMAIL_SIZE_BYTES)).await?;
+                    self.reply(SMTPResponse::Ehlo).await?;
                 }
 
                 SMTPCommand::MailFrom => {
@@ -101,36 +106,36 @@ impl EmailHandler {
                     let addr_part = line.get(10..).unwrap_or("").trim();
                     let (sender, valid) = SMTPResponse::mail_from_response(addr_part, *MAX_EMAIL_SIZE_BYTES);
                     if !valid {
-                        self.writer.write_all(&SMTPResponse::SIZE_LIMIT_EXCEEDED_RESPONSE).await?;
+                        self.reply(SMTPResponse::SizeExceeded).await?;
                         continue;
                     }
                     self.email.set_sender(sender);
-                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    self.reply(SMTPResponse::Ok).await?;
                 }
 
                 SMTPCommand::RcptTo => {
                     let arg = line.get(8..).unwrap_or("").trim().to_string();
                     self.email.add_recipient(arg);
-                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    self.reply(SMTPResponse::Ok).await?;
                 }
 
                 SMTPCommand::Data => {
-                    self.writer.write_all(&SMTPResponse::DATA_RESPONSE).await?;
+                    self.reply(SMTPResponse::Data).await?;
                     self.data_mode = true;
                 }
 
                 SMTPCommand::Quit => {
-                    self.writer.write_all(&SMTPResponse::BYE_RESPONSE).await?;
+                    self.reply(SMTPResponse::Bye).await?;
                     self.writer.shutdown().await?;
                     break;
                 }
 
                 SMTPCommand::Noop => {
-                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    self.reply(SMTPResponse::Ok).await?;
                 }
 
                 SMTPCommand::Dot => {
-                    self.writer.write_all(&SMTPResponse::data_end_response(&self.email.message_id)).await?;
+                    self.reply(SMTPResponse::DataEnd(self.email.message_id.clone())).await?;
                     self.data_mode = false;
 
                     // We close the connection immediately after receiving the email data, as per typical SMTP behavior.
@@ -142,12 +147,12 @@ impl EmailHandler {
                     self.email.reset();
                     self.buffer.clear();
                     self.data_mode = false;
-                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                    self.reply(SMTPResponse::Ok).await?;
                 }
 
                 SMTPCommand::Unknown => {
                     log::warn!("[conn={}] Received unknown command: {}", self.connection_id, line);
-                    self.writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
+                    self.reply(SMTPResponse::NotImplemented).await?;
                 }
             }
         }

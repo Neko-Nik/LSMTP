@@ -1,3 +1,4 @@
+use super::configs::{SERVER_NAME, MAX_EMAIL_SIZE_BYTES};
 use serde::Serialize;
 
 
@@ -21,7 +22,19 @@ pub enum SMTPCommand {
 }
 
 
-pub enum SMTPResponse {}
+pub enum SMTPResponse {
+    Ok,                 // 250 OK
+    Bye,                // 221 Bye
+    Data,               // 354 End data with <CR><LF>.<CR><LF>
+    NotImplemented,     // 502 Command not implemented
+    SizeExceeded,       // 552 Message size exceeds fixed maximum message size
+
+    Greet,              // 220 <server> LSMTP Server (Rust)
+    Helo,               // 250 <server>
+    Ehlo,               // 250-<server>  250-SIZE <max_size>  250-8BITMIME  250 OK
+
+    DataEnd(String),    // 250 2.0.0 Ok: queued as <message_id>
+}
 
 
 // ------- Structs ------- //
@@ -144,47 +157,6 @@ impl SMTPCommand {
 
 
 impl SMTPResponse {
-    pub const OK_RESPONSE: &[u8] = b"250 OK\r\n";
-    pub const DATA_RESPONSE: &[u8] = b"354 End data with <CR><LF>.<CR><LF>\r\n";
-    pub const BYE_RESPONSE: &[u8] = b"221 Bye\r\n";
-    pub const NOT_IMPLEMENTED_RESPONSE: &[u8] = b"502 Command not implemented\r\n";
-    pub const SIZE_LIMIT_EXCEEDED_RESPONSE: &[u8] = b"552 Message size exceeds fixed maximum message size\r\n";
-
-    pub fn greet(server_name: &String) -> Vec<u8> {
-        format!("220 {} LSMTP Server (Rust)\r\n", server_name).into_bytes()
-    }
-
-    pub fn helo_response(server_name: &String) -> Vec<u8> {
-        let response = format!("250 {}\r\n", server_name);
-        response.into_bytes()
-    }
-
-    pub fn data_end_response(message_id: &str) -> Vec<u8> {
-        format!("250 2.0.0 Ok: queued as {}\r\n", message_id).into_bytes()
-    }
-
-    pub fn ehlo_response(server_name: &String, max_email_size: usize) -> Vec<u8> {
-        // Note that the last response should not have "-" at the beginning
-        // But the top level responses should
-        // Example 1: [250 OK] (that is end)
-        // Example 2: [250-TEST  250-SIZE  250-PARAMETER  250 EndCMD] (as you can see end will not have "-" at the beginning)
-        let mut response = format!("250-{}\r\n", server_name);
-
-        response.push_str(format!("250-SIZE {}\r\n", max_email_size).as_str());
-        response.push_str("250-8BITMIME\r\n");
-        // response.push_str("250-PIPELINING\r\n");
-        // response.push_str("250-ENHANCEDSTATUSCODES\r\n");
-        // response.push_str("250 STARTTLS\r\n");
-        // response.push_str("250-SMTPUTF8\r\n");
-        // response.push_str("250 CHUNKING\r\n");
-        // response.push_str("250 DSN\r\n");
-        // response.push_str("250 VRFY\r\n");
-        // response.push_str("250 ETRN\r\n");
-        response.push_str("250 OK\r\n");
-
-        response.into_bytes()
-    }
-
     pub fn mail_from_response(addr_part: &str, max_email_size: usize) -> (String, bool) {
         let mut sender = String::new();
         let mut valid = true;
@@ -219,5 +191,43 @@ impl SMTPResponse {
         }
 
         (sender, valid)
+    }
+
+
+    fn ehlo_response() -> Vec<u8> {
+        // Note that the last response should not have "-" at the beginning
+        // But the top level responses should
+        // Example 1: [250 OK] (that is end)
+        // Example 2: [250-TEST  250-SIZE  250-PARAMETER  250 EndCMD] (as you can see end will not have "-" at the beginning)
+        let mut response = format!("250-{}\r\n", SERVER_NAME.to_string());
+
+        response.push_str(format!("250-SIZE {}\r\n", *MAX_EMAIL_SIZE_BYTES).as_str());
+        response.push_str("250-8BITMIME\r\n");
+        // response.push_str("250-PIPELINING\r\n");
+        // response.push_str("250-ENHANCEDSTATUSCODES\r\n");
+        // response.push_str("250 STARTTLS\r\n");
+        // response.push_str("250-SMTPUTF8\r\n");
+        // response.push_str("250 CHUNKING\r\n");
+        // response.push_str("250 DSN\r\n");
+        // response.push_str("250 VRFY\r\n");
+        // response.push_str("250 ETRN\r\n");
+        response.push_str("250 OK\r\n");
+
+        response.into_bytes()
+    }
+
+
+    pub fn into_bytes(&self) -> Vec<u8> {
+        match self {
+            SMTPResponse::Ok => b"250 OK\r\n".to_vec(),
+            SMTPResponse::Bye => b"221 Bye\r\n".to_vec(),
+            SMTPResponse::Data => b"354 End data with <CR><LF>.<CR><LF>\r\n".to_vec(),
+            SMTPResponse::NotImplemented => b"502 Command not implemented\r\n".to_vec(),
+            SMTPResponse::SizeExceeded => b"552 Message size exceeds fixed maximum message size\r\n".to_vec(),
+            SMTPResponse::Greet => format!("220 {} LSMTP Server (Rust)\r\n", SERVER_NAME.to_string()).into_bytes(),
+            SMTPResponse::Helo => format!("250 {}\r\n", SERVER_NAME.to_string()).into_bytes(),
+            SMTPResponse::Ehlo => Self::ehlo_response(),
+            SMTPResponse::DataEnd(message_id) => format!("250 Ok: queued as {}\r\n", message_id).into_bytes(),
+        }
     }
 }
