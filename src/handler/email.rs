@@ -146,7 +146,7 @@ impl EmailHandler {
                 }
 
                 SMTPCommand::Unknown => {
-                    log::warn!("[con={}] Received unknown command: {}", self.connection_id, line);
+                    log::warn!("[conn={}] Received unknown command: {}", self.connection_id, line);
                     self.writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
                 }
             }
@@ -156,7 +156,7 @@ impl EmailHandler {
         match self.email.validate() {
             Ok(_) => Ok(self.email),
             Err(e) => {
-                log::warn!("[con={}] Invalid email data: {}", self.connection_id, e);
+                log::warn!("[conn={}] Invalid email data: {}", self.connection_id, e);
                 self.writer.shutdown().await?;
                 Err(LSMTPError::InvalidEmailFormat)
             }

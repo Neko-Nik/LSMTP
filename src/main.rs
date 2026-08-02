@@ -17,29 +17,31 @@ const MAX_TIMEOUT_SECS: u64 = 180; // 3 minutes
 
 /// Handle a single client connection. This function is spawned as a new task for each connection.
 async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: EmailSender) {
-    // Create a new UUID for the email message_id and trace_id for logging
-    let msg_id = uuid::Uuid::new_v4();
+    // Create a new UUID for the connection/session
+    let conn_id = uuid::Uuid::new_v4();
 
     // Create a new email handler
-    let client = handler::email::EmailHandler::new(socket, msg_id);
+    let client = handler::email::EmailHandler::new(socket, conn_id);
+
+    log::debug!("[conn={}] Handling connection from: {}", conn_id, addr);
 
     // Run the client with a timeout
     match time::timeout(time::Duration::from_secs(MAX_TIMEOUT_SECS), client.run()).await {
         Ok(Ok(email)) => {
-            log::info!("Received email: {}", email.get_id());
+            log::info!("[conn={}] Received email: {}", conn_id, email.get_id());
 
             // Send the email to the AMQP channel
             if let Err(e) = amqp_tx.send(email).await {
-                log::error!("Failed to send email to AMQP channel: {}", e);
+                log::error!("[conn={}] Failed to send email to AMQP channel: {}", conn_id, e);
             }
         }
 
         Ok(Err(e)) => {
-            log::error!("Error handling client {}: {}", addr, e);
+            log::error!("[conn={}] Error handling client {}: {}", conn_id, addr, e);
         }
 
         Err(_) => {
-            log::warn!("Connection handler timed out after {} seconds for client: {}", MAX_TIMEOUT_SECS, addr);
+            log::warn!("[conn={}] Connection handler timed out after {} seconds for client: {}", conn_id, MAX_TIMEOUT_SECS, addr);
         }
     }
 }
