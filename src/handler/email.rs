@@ -10,7 +10,7 @@ pub struct EmailHandler {
     writer: OwnedWriteHalf,
     email: Email,
     data_mode: bool,
-    buffer: String,
+    buffer: Vec<u8>,
 }
 
 
@@ -23,8 +23,33 @@ impl EmailHandler {
             writer: write_half,
             email: Email::empty(),
             data_mode: false,
-            buffer: String::with_capacity(1024),
+            buffer: Vec::with_capacity(1024),
         }
+    }
+
+    async fn read_next_line(&mut self) -> Result<Option<(Vec<u8>, String)>, std::io::Error> {
+        self.buffer.clear();
+        let bytes_read = self.reader.read_until(b'\n', &mut self.buffer).await?;
+        if bytes_read == 0 {
+            return Ok(None);
+        }
+
+        let line_bytes = self.buffer
+            .strip_suffix(b"\r\n")
+            .or_else(|| self.buffer.strip_suffix(b"\n"))
+            .unwrap_or(self.buffer.as_slice());
+        let line = String::from_utf8_lossy(line_bytes).into_owned();
+
+        Ok(Some((line_bytes.to_vec(), line)))
+    }
+
+    fn append_data_chunk(&mut self, line_bytes: &[u8]) {
+        let mut body_line = line_bytes.to_vec();
+        if body_line.starts_with(b".") {
+            body_line.remove(0);
+        }
+        self.email.add_content(body_line);
+        self.email.add_content(b"\r\n".to_vec());
     }
 
     /// Run the client session. Consumes self and returns the Email (or IO error).
@@ -35,30 +60,23 @@ impl EmailHandler {
         self.writer.write_all(&SMTPResponse::greet(server_name)).await?;
 
         loop {
-            self.buffer.clear();
-            let bytes_read = self.reader.read_line(&mut self.buffer).await?;
-            if bytes_read == 0 {
-                // peer closed connection
+            let Some((line_bytes, line)) = self.read_next_line().await? else {
                 self.writer.shutdown().await?;
                 break;
-            }
-
-            // trim only CRLF, keep content for parsing
-            let line = self.buffer.trim_end_matches(&['\r', '\n'][..]);
+            };
 
             if self.data_mode {
-                if line == "." {
+                if line_bytes == b"." {
                     // end of DATA
                     self.data_mode = false;
                 } else {
-                    // append data line to email content (dot-stuffing not handled here if needed)
-                    self.email.add_content(format!("{}\n", line));
+                    self.append_data_chunk(&line_bytes);
                     continue;
                 }
             }
 
             // Not in data mode — parse command
-            match SMTPCommand::from_str(line) {
+            match SMTPCommand::from_str(&line) {
                 SMTPCommand::HELO => {
                     // safely get argument after command: avoid direct slicing
                     let arg = line.get(5..).unwrap_or("").trim().to_string();
@@ -99,6 +117,10 @@ impl EmailHandler {
                     self.writer.write_all(&SMTPResponse::BYE_RESPONSE).await?;
                     self.writer.shutdown().await?;
                     break;
+                }
+
+                SMTPCommand::Noop => {
+                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
                 }
 
                 SMTPCommand::Dot => {

@@ -30,6 +30,16 @@ pub struct Email {
     message_id: String,
     client_address: String,
     recipients: Vec<String>,
+    email_content: Vec<u8>,
+    sender: String,
+}
+
+#[derive(Serialize)]
+struct EmailPayload {
+    timestamp: String,
+    message_id: String,
+    client_address: String,
+    recipients: Vec<String>,
     email_content: String,
     sender: String,
 }
@@ -126,7 +136,7 @@ impl Email {
             timestamp: current_timestamp(),
             message_id: uuid_v4(),
             recipients: Vec::new(),
-            email_content: String::new(),
+            email_content: Vec::new(),
             client_address: String::new(),
             sender: String::new(),
         }
@@ -150,8 +160,8 @@ impl Email {
         self.recipients.push(recipient);
     }
 
-    pub fn add_content(&mut self, content: String) {
-        self.email_content.push_str(&content);
+    pub fn add_content(&mut self, content: Vec<u8>) {
+        self.email_content.extend_from_slice(&content);
     }
 
     pub fn set_sender(&mut self, sender: String) {
@@ -159,7 +169,16 @@ impl Email {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        serde_json::to_vec(self).expect("Failed to serialize Email")
+        let payload = EmailPayload {
+            timestamp: self.timestamp.clone(),
+            message_id: self.message_id.clone(),
+            client_address: self.client_address.clone(),
+            recipients: self.recipients.clone(),
+            email_content: String::from_utf8_lossy(&self.email_content).into_owned(),
+            sender: self.sender.clone(),
+        };
+
+        serde_json::to_vec(&payload).expect("Failed to serialize Email")
     }
 
     pub fn validate(&self) -> Result<(), String> {
