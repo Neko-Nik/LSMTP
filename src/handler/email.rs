@@ -1,8 +1,7 @@
 use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
 use crate::models::configs::{SERVER_NAME, MAX_EMAIL_SIZE_BYTES};
+use crate::models::email::{Email, SMTPCommand, SMTPResponse};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use super::parsing::{SMTPCommand, SMTPResponse};
-use crate::models::email::Email;
 use crate::errors::LSMTPError;
 
 
