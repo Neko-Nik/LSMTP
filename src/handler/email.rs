@@ -22,7 +22,7 @@ impl EmailHandler {
         let (read_half, write_half) = socket.into_split();
         let email_msg_id = uuid::Uuid::new_v4();
 
-        log::info!("New connection established. Connection ID: {}, Email Message ID: {}", connection_id, email_msg_id);
+        log::info!("New LSMTP connection established. Connection ID: {}, Email Message ID: {}", connection_id, email_msg_id);
 
         EmailHandler {
             connection_id,

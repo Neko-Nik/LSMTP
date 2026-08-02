@@ -1,7 +1,7 @@
 use crate::models::configs::{BaseConfig, MAX_TIMEOUT_SECS, TEMP_EMAIL_DIR};
-use crate::handler::amqp::start_amqp_publisher;
 use tokio::net::{TcpListener, TcpStream};
 use crate::handler::email::EmailHandler;
+use crate::queue::start_amqp_publisher;
 use crate::models::email::Email;
 use std::net::SocketAddr;
 use tokio::time;
