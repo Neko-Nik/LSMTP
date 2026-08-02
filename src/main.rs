@@ -7,7 +7,6 @@ use tokio::time;
 mod handler;
 mod types;
 mod state;
-mod amqp;
 mod errors;
 
 

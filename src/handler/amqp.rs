@@ -1,5 +1,5 @@
 use lapin::{BasicProperties, Connection, ConnectionProperties, options::BasicPublishOptions};
-use super::types::{AMQPConfig, Email};
+use crate::types::{AMQPConfig, Email};
 use tokio::time::{sleep, Duration};
 use tokio::sync::mpsc;
 

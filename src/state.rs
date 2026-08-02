@@ -1,6 +1,7 @@
+use crate::handler::amqp::start_amqp_publisher;
 use super::types::{Email, BaseConfig};
-use super::amqp::start_amqp_publisher;
 use tokio::net::TcpListener;
+
 
 // Type alias for the email sender channel
 pub type EmailSender = tokio::sync::mpsc::Sender<Email>;
