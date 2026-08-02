@@ -2,6 +2,7 @@ use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
 use crate::types::{Email, SERVER_NAME, MAX_EMAIL_SIZE_BYTES};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use super::parsing::{SMTPCommand, SMTPResponse};
+use crate::errors::LSMTPError;
 
 
 /// Per-connection client object that owns the reader/writer and session state.
@@ -27,7 +28,7 @@ impl EmailHandler {
         }
     }
 
-    async fn read_next_line(&mut self) -> Result<Option<(Vec<u8>, String)>, std::io::Error> {
+    async fn read_next_line(&mut self) -> Result<Option<(Vec<u8>, String)>, LSMTPError> {
         self.buffer.clear();
         let bytes_read = self.reader.read_until(b'\n', &mut self.buffer).await?;
         if bytes_read == 0 {
@@ -53,7 +54,7 @@ impl EmailHandler {
     }
 
     /// Run the client session. Consumes self and returns the Email (or IO error).
-    pub async fn run(mut self) -> Result<Email, std::io::Error> {
+    pub async fn run(mut self) -> Result<Email, LSMTPError> {
         // greet the client
         self.writer.write_all(&SMTPResponse::greet(&SERVER_NAME)).await?;
 
@@ -150,7 +151,7 @@ impl EmailHandler {
             Err(e) => {
                 log::warn!("Invalid email data: {}", e);
                 self.writer.shutdown().await?;
-                Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid email data"))
+                Err(LSMTPError::InvalidEmailFormat)
             }
         }
     }

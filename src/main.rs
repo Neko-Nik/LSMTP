@@ -1,57 +1,63 @@
+use tokio::sync::mpsc::Sender;
+use tokio::net::{TcpStream};
+use std::net::SocketAddr;
+use crate::types::Email;
+
+
 mod prelude;
 mod handler;
 mod types;
 mod state;
 mod amqp;
+mod errors;
+
+
+const MAX_TIMEOUT_SECS: u64 = 180; // 3 minutes
+
+
+/// Handle a single client connection. This function is spawned as a new task for each connection.
+async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: Sender<Email>) {
+    // Create a new email handler
+    let client = handler::email::EmailHandler::new(socket);
+
+    // Run the client with a timeout
+    match prelude::timeout(prelude::Duration::from_secs(MAX_TIMEOUT_SECS), client.run()).await {
+        Ok(Ok(email)) => {
+            log::info!("Received email: {}", email.get_id());
+
+            if let Err(e) = amqp_tx.send(email).await {
+                log::error!("Failed to send email to AMQP channel: {}", e);
+            }
+        }
+
+        Ok(Err(e)) => {
+            log::error!("Client error: {}", e);
+        }
+
+        Err(_) => {
+            log::warn!("Connection handler timed out after {} seconds for client: {}", MAX_TIMEOUT_SECS, addr);
+        }
+    }
+}
 
 
 #[tokio::main]
-async fn main() -> tokio::io::Result<()> {
+async fn main() -> Result<(), errors::LSMTPError> {
     // Initialize the application state
     let (listener, amqp_tx) = state::init().await;
+    log::debug!("Configuration loaded. Listening for incoming connections");
 
     loop {
-        match listener.accept().await {
-            Ok((socket, addr)) => {
-                log::trace!("Incoming connection from: {}", addr);
+        // Accept all and any incoming connections
+        let (socket, addr) = listener.accept().await?;
+        log::trace!("Incoming connection from: {}", addr);
 
-                // Clone the AMQP sender reference
-                let amqp_txn = amqp_tx.clone();
+        // Clone the AMQP sender reference
+        let amqp_tx = amqp_tx.clone();
 
-                // Spawn a new task to handle the client connection
-                tokio::spawn(async move {
-                    // Create a new email handler
-                    let client = handler::email::EmailHandler::new(socket);
-
-                    // Run the client with a 3 minute timeout
-                    match prelude::timeout(prelude::Duration::from_secs(180), client.run()).await {
-                        Ok(run_result) => {
-                            // client.run completed before timeout, now inspect result
-                            match run_result {
-                                Ok(email) => {
-                                    log::info!("Received email: {}", email.get_id());
-
-                                    // Send email to AMQP channel to process with backpressure (channel buffering)
-                                    if let Err(e) = amqp_txn.send(email).await {
-                                        log::error!("Failed to send email to AMQP channel: {}", e);
-                                    }
-                                }
-                                Err(e) => {
-                                    log::error!("Error handling client: {}", e);
-                                }
-                            }
-                        }
-
-                        // Timeout elapsed
-                        Err(_) => {
-                            log::warn!("Connection handler timed out after 180 seconds for client: {}", addr);
-                        }
-                    }
-                });
-            },
-            Err(e) => {
-                log::error!("Error accepting connection: {:?}", e);
-            }
-        }
+        // Spawn a new task to handle the client connection
+        tokio::spawn(async move {
+            handle_connection(socket, addr, amqp_tx).await;
+        });
     }
 }
