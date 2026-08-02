@@ -6,9 +6,9 @@ use std::error::Error;
 pub enum LSMTPError {
     IoError(std::io::Error),
     // AmqpError(amqprs::error::Error),
-    TimeoutError,
+    // TimeoutError,
     InvalidEmailFormat,
-    Other(String),
+    // Other(String),
 }
 
 
@@ -20,14 +20,15 @@ impl fmt::Display for LSMTPError {
         match self {
             LSMTPError::IoError(e) => write!(f, "I/O Error: {}", e),
             // LSMTPError::AmqpError(e) => write!(f, "AMQP Error: {}", e),
-            LSMTPError::TimeoutError => write!(f, "Operation timed out"),
+            // LSMTPError::TimeoutError => write!(f, "Operation timed out"),
             LSMTPError::InvalidEmailFormat => write!(f, "Invalid email format"),
-            LSMTPError::Other(msg) => write!(f, "{}", msg),
+            // LSMTPError::Other(msg) => write!(f, "{}", msg),
         }
     }
 }
 
 
+// TODO: Not required for now, but can be useful for future error handling and propagation
 impl Error for LSMTPError {}
 
 

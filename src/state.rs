@@ -2,12 +2,16 @@ use super::types::{Email, BaseConfig};
 use super::amqp::start_amqp_publisher;
 use tokio::net::TcpListener;
 
+// Type alias for the email sender channel
+pub type EmailSender = tokio::sync::mpsc::Sender<Email>;
+
 
 // Temporary email storage directory if the AMQP publish fails
 const TMP_EMAIL_DIR: &str = "/tmp/lsmtp";
 
 
-pub async fn init() -> (TcpListener, tokio::sync::mpsc::Sender<Email>) {
+/// Initializes the Logging, TCP Listener, and AMQP Publisher for the LSMTP Daemon
+pub async fn init() -> (TcpListener, EmailSender) {
     // Initialize logging
     env_logger::init();
 

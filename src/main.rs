@@ -1,7 +1,6 @@
-use tokio::sync::mpsc::Sender;
+use crate::state::EmailSender;
 use tokio::net::{TcpStream};
 use std::net::SocketAddr;
-use crate::types::Email;
 use tokio::time;
 
 
@@ -17,7 +16,7 @@ const MAX_TIMEOUT_SECS: u64 = 180; // 3 minutes
 
 
 /// Handle a single client connection. This function is spawned as a new task for each connection.
-async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: Sender<Email>) {
+async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: EmailSender) {
     // Create a new UUID for the email message_id and trace_id for logging
     let msg_id = uuid::Uuid::new_v4();
 
