@@ -1,7 +1,7 @@
 use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
+use crate::types::{Email, SERVER_NAME, MAX_EMAIL_SIZE_BYTES};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use super::parsing::{SMTPCommand, SMTPResponse};
-use crate::types::{Email, InternalConfig};
 
 
 /// Per-connection client object that owns the reader/writer and session state.
@@ -53,11 +53,9 @@ impl EmailHandler {
     }
 
     /// Run the client session. Consumes self and returns the Email (or IO error).
-    pub async fn run(mut self, cfg: &InternalConfig) -> Result<Email, std::io::Error> {
-        let server_name = &cfg.server_name;
-
+    pub async fn run(mut self) -> Result<Email, std::io::Error> {
         // greet the client
-        self.writer.write_all(&SMTPResponse::greet(server_name)).await?;
+        self.writer.write_all(&SMTPResponse::greet(&SERVER_NAME)).await?;
 
         loop {
             let Some((line_bytes, line)) = self.read_next_line().await? else {
@@ -81,19 +79,19 @@ impl EmailHandler {
                     // safely get argument after command: avoid direct slicing
                     let arg = line.get(5..).unwrap_or("").trim().to_string();
                     self.email.set_client_address(arg);
-                    self.writer.write_all(&SMTPResponse::helo_response(server_name)).await?;
+                    self.writer.write_all(&SMTPResponse::helo_response(&SERVER_NAME)).await?;
                 }
 
                 SMTPCommand::EHLO => {
                     let arg = line.get(5..).unwrap_or("").trim().to_string();
                     self.email.set_client_address(arg);
-                    self.writer.write_all(&SMTPResponse::ehlo_response(server_name, cfg.max_email_size)).await?;
+                    self.writer.write_all(&SMTPResponse::ehlo_response(&SERVER_NAME, *MAX_EMAIL_SIZE_BYTES)).await?;
                 }
 
                 SMTPCommand::MailFrom => {
                     // safe slice: MAIL FROM: is 10 chars, but use get to avoid panic
                     let addr_part = line.get(10..).unwrap_or("").trim();
-                    let (sender, valid) = SMTPResponse::mail_from_response(addr_part, cfg.max_email_size);
+                    let (sender, valid) = SMTPResponse::mail_from_response(addr_part, *MAX_EMAIL_SIZE_BYTES);
                     if !valid {
                         self.writer.write_all(&SMTPResponse::SIZE_LIMIT_EXCEEDED_RESPONSE).await?;
                         continue;

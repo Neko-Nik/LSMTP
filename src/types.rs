@@ -1,4 +1,5 @@
 use super::prelude::{env_var, current_timestamp, uuid_v4, Serialize};
+use std::sync::LazyLock;
 
 
 pub struct AMQPConfig {
@@ -15,13 +16,7 @@ pub struct AMQPConfig {
 pub struct BaseConfig {
     bind_address: String,
     bind_port: u16,
-    pub internal: InternalConfig,
     pub amqp_details: AMQPConfig,
-}
-
-pub struct InternalConfig {
-    pub server_name: String,
-    pub max_email_size: usize,
 }
 
 #[derive(Serialize)]
@@ -45,6 +40,18 @@ struct EmailPayload {
 }
 
 
+pub static SERVER_NAME: LazyLock<String> = LazyLock::new(|| {
+    env_var("SERVER_NAME").expect("SERVER_NAME must be set")
+});
+
+pub static MAX_EMAIL_SIZE_BYTES: LazyLock<usize> = LazyLock::new(|| {
+    env_var("MAX_EMAIL_SIZE_BYTES")
+        .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
+        .parse::<usize>()
+        .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
+});
+
+
 impl BaseConfig {
     pub fn from_env() -> Self {
         let bind_address = env_var("BIND_ADDRESS")
@@ -53,12 +60,6 @@ impl BaseConfig {
             .expect("BIND_PORT must be set to a valid u16")
             .parse::<u16>()
             .expect("BIND_PORT must be set to a valid u16");
-        let server_name = env_var("SERVER_NAME")
-            .expect("SERVER_NAME must be set");
-        let max_email_size = env_var("MAX_EMAIL_SIZE_BYTES")
-            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize")
-            .parse::<usize>()
-            .expect("MAX_EMAIL_SIZE_BYTES must be set to a valid usize");
 
         let amqp_host = env_var("AMQP_HOST")
             .expect("AMQP_HOST must be set");
@@ -93,15 +94,9 @@ impl BaseConfig {
             buffer_size: amqp_buffer_size,
         };
 
-        let internal = InternalConfig {
-            server_name,
-            max_email_size
-        };
-
         BaseConfig {
             bind_address,
             bind_port,
-            internal,
             amqp_details,
         }
     }
