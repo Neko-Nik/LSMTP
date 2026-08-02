@@ -168,7 +168,7 @@ impl EmailHandler {
             }
 
             Err(e) => {
-                log::warn!("[conn={}] Invalid email data: {}", self.connection_id, e);
+                log::warn!("[conn={}] Email validation failed: {}. Email summary: {}", self.connection_id, e, self.email.debug_summary());
                 self.writer.shutdown().await?;
                 Err(LSMTPError::InvalidEmailFormat)
             }
