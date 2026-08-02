@@ -80,14 +80,34 @@ async fn connect_amqp(amqp_config: &AMQPConfig) -> Option<AMQP> {
 }
 
 
+/// Attempt to reconnect to AMQP, closing any existing connection first
 async fn reconnect(amqp: &mut Option<AMQP>, config: &AMQPConfig) {
+    // If we have an existing connection, close it before reconnecting
     if let Some(old) = amqp.take() {
         log::warn!("Closing old AMQP connection for reconnect");
         close_amqp(old).await;
     }
 
+    // Attempt to do a new connection
     log::info!("Reconnecting to AMQP");
     *amqp = connect_amqp(config).await;
+}
+
+
+/// Ensure we have a live AMQP connection, reconnecting if necessary
+async fn ensure_connection(amqp: &mut Option<AMQP>, cfg: &AMQPConfig) {
+    // If we already have a live connection, do nothing
+    if amqp
+        .as_ref()
+        .is_some_and(|a| a.connected())
+    {
+        // Connection is alive, nothing to do
+        return;
+    }
+
+    // If we don't have a live connection, log a warning and attempt to reconnect
+    log::warn!("AMQP connection lost, reconnecting!");
+    reconnect(amqp, cfg).await;
 }
 
 
@@ -105,13 +125,9 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             log::debug!("Publishing email to AMQP: {}", msg_id);
 
             // Ensure we have a live connection
-            let needs_reconnect = amqp.as_ref().map_or(true, |a| !a.connected());
+            ensure_connection(&mut amqp, &amqp_config).await;
 
-            if needs_reconnect {
-                log::warn!("AMQP connection lost, reconnecting! for email: {}", msg_id);
-                reconnect(&mut amqp, &amqp_config).await;
-            }
-
+            // If we still don't have a connection, save the email locally and continue
             let Some(active) = &amqp else {
                 save_local_email(msg_id, &email_bytes);
                 continue;
@@ -127,7 +143,8 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             }
         }
 
-        reconnect(&mut amqp, &amqp_config).await;
+        // The sender has been closed, exit the publisher task
+        amqp.map(|a| tokio::spawn(close_amqp(a)));
 
         log::info!("AMQP publisher exiting; sender closed");
     });
