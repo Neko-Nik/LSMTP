@@ -119,6 +119,10 @@ impl EmailHandler {
                     break;
                 }
 
+                SMTPCommand::Noop => {
+                    self.writer.write_all(&SMTPResponse::OK_RESPONSE).await?;
+                }
+
                 SMTPCommand::Dot => {
                     self.writer.write_all(&SMTPResponse::data_end_response(self.email.get_id())).await?;
                     self.data_mode = false;

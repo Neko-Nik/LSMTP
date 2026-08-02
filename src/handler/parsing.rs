@@ -9,6 +9,7 @@ pub enum SMTPCommand {
     Dot,        // End of data
 
     Quit,       // Close connection
+    Noop,       // No operation
     Reset,      // Reset all
     Unknown,    // Unknown
 }
@@ -30,6 +31,8 @@ impl SMTPCommand {
             SMTPCommand::Dot
         } else if command_upper == "RSET" {
             SMTPCommand::Reset
+        } else if command_upper == "NOOP" {
+            SMTPCommand::Noop
         } else if command_upper == "QUIT" {
             SMTPCommand::Quit
         } else {
@@ -98,6 +101,12 @@ impl SMTPResponse {
                     if size >= max_email_size {
                         valid = false;
                     }
+                }
+            } else if upper.starts_with("BODY=") {
+                let body = upper.trim_start_matches("BODY=");
+                if body != "7BIT" && body != "8BITMIME" {
+                    valid = false;
+                    break;
                 }
             } else if part.starts_with('<') && part.ends_with('>') {
                 sender = part[1..part.len()-1].to_string();
