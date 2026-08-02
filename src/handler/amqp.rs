@@ -56,6 +56,17 @@ async fn connect_amqp(amqp_config: &AMQPConfig) -> Option<AMQP> {
 }
 
 
+async fn reconnect(amqp: &mut Option<AMQP>, config: &AMQPConfig) {
+    if let Some(old) = amqp.take() {
+        log::warn!("Closing old AMQP connection for reconnect");
+        close_amqp(old).await;
+    }
+
+    log::info!("Reconnecting to AMQP");
+    *amqp = connect_amqp(config).await;
+}
+
+
 /// Start the AMQP publisher task and return a sender for sending emails to be published
 pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
     let (tx, mut rx) = mpsc::channel::<Email>(amqp_config.buffer_size);
@@ -80,10 +91,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
 
             if needs_reconnect {
                 log::warn!("AMQP connection lost, reconnecting! for email: {}", msg_id);
-                if let Some(old) = amqp.take() {
-                    close_amqp(old).await;
-                }
-                amqp = connect_amqp(&amqp_config).await;
+                reconnect(&mut amqp, &amqp_config).await;
             }
 
             let Some(active) = &amqp else {
@@ -105,9 +113,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                     if let Err(e) = confirm.await {
                         log::error!("AMQP publish not confirmed: {:?} for email: {}", e, msg_id);
                         save_local_email(msg_id, &email_bytes);
-                        if let Some(old) = amqp.take() {
-                            close_amqp(old).await;
-                        }
+                        reconnect(&mut amqp, &amqp_config).await;
                         continue;
                     }
                     log::trace!("AMQP publish confirmed for email: {}", msg_id);
@@ -115,16 +121,12 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                 Err(e) => {
                     log::error!("AMQP publish failed: {:?} for email: {}", e, msg_id);
                     save_local_email(msg_id, &email_bytes);
-                    if let Some(old) = amqp.take() {
-                        close_amqp(old).await;
-                    }
+                    reconnect(&mut amqp, &amqp_config).await;
                 }
             }
         }
 
-        if let Some(old) = amqp {
-            close_amqp(old).await;
-        }
+        reconnect(&mut amqp, &amqp_config).await;
 
         log::info!("AMQP publisher exiting; sender closed");
     });
