@@ -12,6 +12,30 @@ struct AMQP {
 }
 
 
+impl AMQP {
+    fn connected(&self) -> bool {
+        self.connection.status().connected()
+            && self.channel.status().connected()
+    }
+
+    async fn publish(&self, config: &AMQPConfig, payload: &[u8]) -> Result<(), lapin::Error> {
+        let confirm = self.channel
+            .basic_publish(
+                &config.exchange(),
+                &config.routing_key(),
+                BasicPublishOptions::default(),
+                payload,
+                BasicProperties::default(),
+            )
+            .await?;
+
+        confirm.await?;
+
+        Ok(())
+    }
+}
+
+
 /// Cleanly tear down an AMQP connection
 async fn close_amqp(amqp: AMQP) {
     let _ = amqp.channel.close(200, "reconnect").await;
@@ -81,13 +105,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             log::debug!("Publishing email to AMQP: {}", msg_id);
 
             // Ensure we have a live connection
-            let needs_reconnect: bool = match &amqp {
-                Some(a) => {
-                    !a.connection.status().connected()
-                    || !a.channel.status().connected()
-                }
-                None => true,
-            };
+            let needs_reconnect = amqp.as_ref().map_or(true, |a| !a.connected());
 
             if needs_reconnect {
                 log::warn!("AMQP connection lost, reconnecting! for email: {}", msg_id);
@@ -99,30 +117,13 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
                 continue;
             };
 
-            // Publish the email to the configured exchange and routing key
-            let publish = active.channel.basic_publish(
-                &amqp_config.exchange(),
-                &amqp_config.routing_key(),
-                BasicPublishOptions::default(),
-                &email_bytes,
-                BasicProperties::default(),
-            ).await;
-
-            match publish {
-                Ok(confirm) => {
-                    if let Err(e) = confirm.await {
-                        log::error!("AMQP publish not confirmed: {:?} for email: {}", e, msg_id);
-                        save_local_email(msg_id, &email_bytes);
-                        reconnect(&mut amqp, &amqp_config).await;
-                        continue;
-                    }
-                    log::trace!("AMQP publish confirmed for email: {}", msg_id);
-                }
-                Err(e) => {
-                    log::error!("AMQP publish failed: {:?} for email: {}", e, msg_id);
-                    save_local_email(msg_id, &email_bytes);
-                    reconnect(&mut amqp, &amqp_config).await;
-                }
+            // Attempt to publish the email
+            if let Err(e) = active.publish(&amqp_config, &email_bytes).await {
+                log::error!("AMQP publish failed: {:?} for email: {}", e, msg_id);
+                save_local_email(msg_id, &email_bytes);
+                reconnect(&mut amqp, &amqp_config).await;
+            } else {
+                log::trace!("AMQP publish confirmed for email: {}", msg_id);
             }
         }
 
