@@ -162,7 +162,11 @@ impl EmailHandler {
 
         // Final validation
         match self.email.validate() {
-            Ok(_) => Ok(self.email),
+            Ok(_) => {
+                log::info!("[conn={}] Email received successfully: {}", self.connection_id, self.email.debug_summary());
+                Ok(self.email)
+            }
+
             Err(e) => {
                 log::warn!("[conn={}] Invalid email data: {}", self.connection_id, e);
                 self.writer.shutdown().await?;

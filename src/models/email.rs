@@ -126,6 +126,16 @@ impl Email {
         }
         Ok(())
     }
+
+    pub fn debug_summary(&self) -> String {
+        format!(
+            "Email {{ message_id: {}, sender: {}, recipients: {:?}, content_length: {} bytes }}",
+            self.message_id,
+            self.sender,
+            self.recipients,
+            self.email_content.len()
+        )
+    }
 }
 
 
