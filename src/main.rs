@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use tokio::time;
 
 
-// mod prelude;
 mod handler;
 mod types;
 mod state;
@@ -28,7 +27,7 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: EmailSe
     // Run the client with a timeout
     match time::timeout(time::Duration::from_secs(MAX_TIMEOUT_SECS), client.run()).await {
         Ok(Ok(email)) => {
-            log::info!("[conn={}] Received email: {}", conn_id, email.get_id());
+            log::info!("[conn={}] Received email: {}", conn_id, email.message_id);
 
             // Send the email to the AMQP channel
             if let Err(e) = amqp_tx.send(email).await {

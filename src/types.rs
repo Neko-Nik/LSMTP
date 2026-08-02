@@ -23,7 +23,7 @@ pub struct BaseConfig {
 #[derive(Serialize)]
 pub struct Email {
     timestamp: String,
-    message_id: String,
+    pub message_id: String,
     client_address: String,
     recipients: Vec<String>,
     email_content: Vec<u8>,
@@ -142,10 +142,6 @@ impl Email {
         self.email_content.clear();
         self.recipients.clear();
         self.sender.clear();
-    }
-
-    pub fn get_id(&self) -> &str {
-        &self.message_id
     }
 
     pub fn set_client_address(&mut self, client_address: String) {

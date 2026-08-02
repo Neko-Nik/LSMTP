@@ -16,7 +16,7 @@ struct AMQP {
 
 /// Locally save the email to a path
 fn save_email_locally(email: &Email) {
-    let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.get_id());
+    let path = format!("{}/{}.json", TMP_EMAIL_DIR, email.message_id);
 
     // Warn the user that we are using a temporary storage location
     log::warn!("Saving email to temporary location, manual intervention required: {}", &path);
@@ -81,7 +81,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
         let mut amqp: Option<AMQP> = connect_amqp(&amqp_config).await;
 
         while let Some(email) = rx.recv().await {
-            let msg_id = email.get_id();
+            let msg_id = &email.message_id;
             log::debug!("Publishing email to AMQP: {}", msg_id);
 
             // Ensure we have a live connection
@@ -94,7 +94,7 @@ pub fn start_amqp_publisher(amqp_config: AMQPConfig) -> mpsc::Sender<Email> {
             };
 
             if needs_reconnect {
-                log::warn!("AMQP connection lost, reconnecting!");
+                log::warn!("AMQP connection lost, reconnecting! for email: {}", msg_id);
                 if let Some(old) = amqp.take() {
                     close_amqp(old).await;
                 }
