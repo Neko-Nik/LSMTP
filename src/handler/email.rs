@@ -34,9 +34,11 @@ impl EmailHandler {
         }
     }
 
-    async fn read_next_line(&mut self) -> Result<Option<(Vec<u8>, String)>, LSMTPError> {
+    async fn read_next_line(&mut self) -> Result<Option<String>, LSMTPError> {
         self.buffer.clear();
+
         let bytes_read = self.reader.read_until(b'\n', &mut self.buffer).await?;
+
         if bytes_read == 0 {
             return Ok(None);
         }
@@ -46,18 +48,18 @@ impl EmailHandler {
             .or_else(|| self.buffer.strip_suffix(b"\n"))
             .unwrap_or(self.buffer.as_slice());
 
-        let line = String::from_utf8_lossy(line_bytes).into_owned();
-
-        Ok(Some((line_bytes.to_vec(), line)))
+        Ok(Some(String::from_utf8_lossy(line_bytes).into_owned()))
     }
 
     fn append_data_chunk(&mut self, line_bytes: &[u8]) {
-        let mut body_line = line_bytes.to_vec();
-        if body_line.starts_with(b".") {
-            body_line.remove(0);
-        }
-        self.email.add_content(body_line);
-        self.email.add_content(b"\r\n".to_vec());
+        let bytes = if line_bytes.starts_with(b".") {
+            &line_bytes[1..]
+        } else {
+            line_bytes
+        };
+
+        self.email.add_content(bytes);
+        self.email.add_content(b"\r\n");
     }
 
     async fn reply(&mut self, response: SMTPResponse) -> Result<(), LSMTPError> {
@@ -71,10 +73,11 @@ impl EmailHandler {
         self.reply(SMTPResponse::Greet).await?;
 
         loop {
-            let Some((line_bytes, line)) = self.read_next_line().await? else {
+            let Some(line) = self.read_next_line().await? else {
                 self.writer.shutdown().await?;
                 break;
             };
+            let line_bytes = line.as_bytes();
 
             if self.data_mode {
                 if line_bytes == b"." {

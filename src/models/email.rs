@@ -91,8 +91,8 @@ impl Email {
         self.recipients.push(recipient);
     }
 
-    pub fn add_content(&mut self, content: Vec<u8>) {
-        self.email_content.extend_from_slice(&content);
+    pub fn add_content(&mut self, content: &[u8]) {
+        self.email_content.extend_from_slice(content);
     }
 
     pub fn set_sender(&mut self, sender: String) {
@@ -100,6 +100,7 @@ impl Email {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
+        // TODO: Plan to implement a more efficient serialization method
         let payload = EmailPayload {
             timestamp: self.timestamp.clone(),
             message_id: self.message_id.clone(),
