@@ -67,3 +67,17 @@ pub async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: Ema
         }
     }
 }
+
+
+/// Locally save the contents of an email to a temporary directory for later retrieval or manual intervention
+pub fn save_local_email(message_id: &str, contents: &[u8]) {
+    let path = format!("{}/{}.json", TEMP_EMAIL_DIR.to_string(), message_id);
+
+    // Warn the user that we are using a temporary storage location
+    log::warn!("Saving email to temporary location, manual intervention required: {}", &path);
+
+    // Write the email to the file system
+    if let Err(e) = std::fs::write(&path, contents) {
+        log::error!("Failed to save email locally and is totally lost! path: {}, error: {}", &path, e);
+    }
+}
