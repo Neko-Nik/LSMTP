@@ -1,5 +1,6 @@
-use super::prelude::{env_var, current_timestamp, uuid_v4, Serialize};
+use std::env::var as env_var;
 use std::sync::LazyLock;
+use serde::Serialize;
 
 
 pub struct AMQPConfig {
@@ -126,10 +127,10 @@ impl AMQPConfig {
 
 
 impl Email {
-    pub fn empty() -> Self {
+    pub fn new(msg_id: uuid::Uuid) -> Self {
         Email {
-            timestamp: current_timestamp(),
-            message_id: uuid_v4(),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            message_id: msg_id.to_string(),
             recipients: Vec::new(),
             email_content: Vec::new(),
             client_address: String::new(),

@@ -1,6 +1,6 @@
 use super::types::{Email, BaseConfig};
 use super::amqp::start_amqp_publisher;
-use super::prelude::TcpListener;
+use tokio::net::TcpListener;
 
 
 // Temporary email storage directory if the AMQP publish fails

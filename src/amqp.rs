@@ -1,5 +1,7 @@
-use super::prelude::{mpsc, sleep, Duration, BasicPublishOptions, Connection, ConnectionProperties, BasicProperties};
+use lapin::{BasicProperties, Connection, ConnectionProperties, options::BasicPublishOptions};
 use super::types::{AMQPConfig, Email};
+use tokio::time::{sleep, Duration};
+use tokio::sync::mpsc;
 
 
 // Temporary email storage directory if the AMQP publish fails

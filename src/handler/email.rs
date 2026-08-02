@@ -7,6 +7,7 @@ use crate::errors::LSMTPError;
 
 /// Per-connection client object that owns the reader/writer and session state.
 pub struct EmailHandler {
+    connection_id: uuid::Uuid,
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
     email: Email,
@@ -17,12 +18,17 @@ pub struct EmailHandler {
 
 impl EmailHandler {
     /// Create a EmailHandler from a connected TcpStream
-    pub fn new(socket: TcpStream) -> Self {
+    pub fn new(socket: TcpStream, connection_id: uuid::Uuid) -> Self {
         let (read_half, write_half) = socket.into_split();
+        let email_msg_id = uuid::Uuid::new_v4();
+
+        log::info!("New connection established. Connection ID: {}, Email Message ID: {}", connection_id, email_msg_id);
+
         EmailHandler {
+            connection_id,
             reader: BufReader::new(read_half),
             writer: write_half,
-            email: Email::empty(),
+            email: Email::new(email_msg_id),
             data_mode: false,
             buffer: Vec::with_capacity(1024),
         }
@@ -39,6 +45,7 @@ impl EmailHandler {
             .strip_suffix(b"\r\n")
             .or_else(|| self.buffer.strip_suffix(b"\n"))
             .unwrap_or(self.buffer.as_slice());
+
         let line = String::from_utf8_lossy(line_bytes).into_owned();
 
         Ok(Some((line_bytes.to_vec(), line)))
@@ -139,7 +146,7 @@ impl EmailHandler {
                 }
 
                 SMTPCommand::Unknown => {
-                    log::warn!("Unknown command received: {}", line);
+                    log::warn!("[con={}] Received unknown command: {}", self.connection_id, line);
                     self.writer.write_all(&SMTPResponse::NOT_IMPLEMENTED_RESPONSE).await?;
                 }
             }
@@ -149,7 +156,7 @@ impl EmailHandler {
         match self.email.validate() {
             Ok(_) => Ok(self.email),
             Err(e) => {
-                log::warn!("Invalid email data: {}", e);
+                log::warn!("[con={}] Invalid email data: {}", self.connection_id, e);
                 self.writer.shutdown().await?;
                 Err(LSMTPError::InvalidEmailFormat)
             }

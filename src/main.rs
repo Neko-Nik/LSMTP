@@ -2,9 +2,10 @@ use tokio::sync::mpsc::Sender;
 use tokio::net::{TcpStream};
 use std::net::SocketAddr;
 use crate::types::Email;
+use tokio::time;
 
 
-mod prelude;
+// mod prelude;
 mod handler;
 mod types;
 mod state;
@@ -17,21 +18,25 @@ const MAX_TIMEOUT_SECS: u64 = 180; // 3 minutes
 
 /// Handle a single client connection. This function is spawned as a new task for each connection.
 async fn handle_connection(socket: TcpStream, addr: SocketAddr, amqp_tx: Sender<Email>) {
+    // Create a new UUID for the email message_id and trace_id for logging
+    let msg_id = uuid::Uuid::new_v4();
+
     // Create a new email handler
-    let client = handler::email::EmailHandler::new(socket);
+    let client = handler::email::EmailHandler::new(socket, msg_id);
 
     // Run the client with a timeout
-    match prelude::timeout(prelude::Duration::from_secs(MAX_TIMEOUT_SECS), client.run()).await {
+    match time::timeout(time::Duration::from_secs(MAX_TIMEOUT_SECS), client.run()).await {
         Ok(Ok(email)) => {
             log::info!("Received email: {}", email.get_id());
 
+            // Send the email to the AMQP channel
             if let Err(e) = amqp_tx.send(email).await {
                 log::error!("Failed to send email to AMQP channel: {}", e);
             }
         }
 
         Ok(Err(e)) => {
-            log::error!("Client error: {}", e);
+            log::error!("Error handling client {}: {}", addr, e);
         }
 
         Err(_) => {
