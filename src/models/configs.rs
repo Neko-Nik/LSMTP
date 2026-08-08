@@ -11,8 +11,8 @@ pub struct AMQPConfig {
     username: String,
     password: String,
     vhost: String,
-    exchange: String,
-    routing_key: String,
+    pub exchange: String,
+    pub routing_key: String,
     pub buffer_size: usize,
 }
 
@@ -130,15 +130,5 @@ impl AMQPConfig {
             "amqp://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.vhost
         )
-    }
-
-    /// Returns the exchange name.
-    pub fn exchange(&self) -> String {
-        self.exchange.clone()
-    }
-
-    /// Returns the routing key.
-    pub fn routing_key(&self) -> String {
-        self.routing_key.clone()
     }
 }

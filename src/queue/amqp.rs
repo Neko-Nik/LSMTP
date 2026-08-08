@@ -56,8 +56,8 @@ impl AMQP {
     pub async fn publish(&self, config: &AMQPConfig, payload: &[u8]) -> Result<(), lapin::Error> {
         let confirm = self.channel
             .basic_publish(
-                &config.exchange(),
-                &config.routing_key(),
+                &config.exchange,
+                &config.routing_key,
                 BasicPublishOptions::default(),
                 payload,
                 BasicProperties::default(),
